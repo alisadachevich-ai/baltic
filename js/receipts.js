@@ -1,0 +1,331 @@
+/* Чеки и продуктовая корзина: хранение, привязка к транзакциям,
+   разбор текста локально и фото/PDF через Claude API (ключ пользователя). */
+
+const LS_RECEIPTS = 'baltic-audit-receipts-v1';
+const LS_PRODUCT_RULES = 'baltic-audit-product-rules-v1';
+const LS_API_KEY = 'baltic-audit-api-key';
+const LS_AI_MODEL = 'baltic-audit-ai-model';
+
+const receiptsState = {
+  receipts: [],        // {id, merchant, date(Date), total, items:[{name, price, cat}], source}
+  productRules: {},    // нормализованное имя товара → catId
+};
+
+/* ── Хранение ── */
+function persistReceipts() {
+  try {
+    localStorage.setItem(LS_RECEIPTS, JSON.stringify(receiptsState.receipts.map(r => ({
+      id: r.id, m: r.merchant, d: r.date.getTime(), t: r.total, s: r.source,
+      i: r.items.map(it => ({ n: it.name, p: it.price, c: it.cat })),
+    }))));
+  } catch (e) { console.warn('Не удалось сохранить чеки', e); }
+  localStorage.setItem(LS_PRODUCT_RULES, JSON.stringify(receiptsState.productRules));
+}
+
+function restoreReceipts() {
+  try {
+    receiptsState.productRules = JSON.parse(localStorage.getItem(LS_PRODUCT_RULES) || '{}');
+    receiptsState.receipts = (JSON.parse(localStorage.getItem(LS_RECEIPTS) || '[]')).map(r => ({
+      id: r.id, merchant: r.m, date: new Date(r.d), total: r.t, source: r.s,
+      items: r.i.map(it => ({ name: it.n, price: it.p, cat: it.c })),
+    }));
+    applyProductRules();
+  } catch (e) { receiptsState.receipts = []; }
+}
+
+const productKey = n => String(n || '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+function applyProductRules() {
+  for (const r of receiptsState.receipts) {
+    for (const it of r.items) {
+      const override = receiptsState.productRules[productKey(it.name)];
+      if (override) it.cat = override;
+    }
+  }
+}
+
+function addReceipt(parsed, source) {
+  const receipt = {
+    id: 'r' + Date.now() + Math.random().toString(36).slice(2, 7),
+    merchant: parsed.merchant || 'Магазин',
+    date: parsed.date instanceof Date ? parsed.date : (parseDateStr(parsed.date) || new Date()),
+    total: parsed.total,
+    items: parsed.items.map(it => ({
+      name: it.name,
+      price: it.price,
+      cat: receiptsState.productRules[productKey(it.name)] || it.cat || categorizeProduct(it.name),
+    })),
+    source,
+  };
+  receiptsState.receipts.push(receipt);
+  receiptsState.receipts.sort((a, b) => b.date - a.date);
+  persistReceipts();
+  return receipt;
+}
+
+/* Чек «привязан», если в выписке есть трата с той же суммой в ±3 дня */
+function isReceiptLinked(receipt) {
+  return state.transactions.some(t =>
+    t.amount < 0 &&
+    Math.abs(Math.abs(t.amount) - receipt.total) < 0.01 &&
+    Math.abs(t.date - receipt.date) < 3 * 86400000
+  );
+}
+
+/* ── Claude API: фото / PDF / сложный текст ── */
+const RECEIPT_SCHEMA = {
+  type: 'object',
+  properties: {
+    merchant: { type: 'string', description: 'Название магазина, например Rimi, Maxima, Lidl' },
+    date: { type: ['string', 'null'], description: 'Дата чека в формате YYYY-MM-DD, null если не видна' },
+    total: { type: 'number', description: 'Итоговая сумма чека в EUR' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название товара как в чеке' },
+          price: { type: 'number', description: 'Итоговая цена позиции в EUR со всеми скидками' },
+          category: { type: 'string', enum: PRODUCT_CATEGORIES.map(c => c.id) },
+        },
+        required: ['name', 'price', 'category'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['merchant', 'date', 'total', 'items'],
+  additionalProperties: false,
+};
+
+function receiptPrompt() {
+  const cats = PRODUCT_CATEGORIES.map(c => `${c.id} = ${c.name}`).join('; ');
+  return `Это кассовый чек из магазина (скорее всего Латвия: Rimi, Maxima, Lidl и т.п., названия товаров на латышском). Извлеки все товарные позиции с итоговыми ценами (учти скидки: строка "Atlaide" со знаком минус относится к товару выше). Депозит за тару (Depozīts) и пакеты — отдельные позиции категории deposit. Категории: ${cats}. Верни JSON по схеме.`;
+}
+
+async function parseReceiptWithClaude({ base64, mediaType, text }) {
+  const apiKey = localStorage.getItem(LS_API_KEY);
+  if (!apiKey) throw new Error('Сначала добавь API-ключ Anthropic в настройках чеков');
+  const model = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
+
+  const content = [];
+  if (base64) {
+    content.push(mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } });
+  }
+  content.push({ type: 'text', text: receiptPrompt() + (text ? '\n\nТекст чека:\n' + text : '') });
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8192,
+      output_config: { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } },
+      messages: [{ role: 'user', content }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error('Claude API: ' + (err.error?.message || resp.status));
+  }
+  const data = await resp.json();
+  if (data.stop_reason === 'refusal') throw new Error('Модель отказалась обрабатывать этот файл');
+  const textBlock = data.content.find(b => b.type === 'text');
+  if (!textBlock) throw new Error('Пустой ответ от Claude API');
+  const parsed = JSON.parse(textBlock.text);
+  return {
+    merchant: parsed.merchant,
+    date: parsed.date ? parseDateStr(parsed.date) : new Date(),
+    total: parsed.total,
+    items: parsed.items.map(it => ({ name: it.name, price: it.price, cat: it.category })),
+  };
+}
+
+/* ── UI ── */
+function initReceiptsUI() {
+  restoreReceipts();
+
+  const savedKey = localStorage.getItem(LS_API_KEY);
+  if (savedKey) $('api-key-input').value = savedKey;
+  $('ai-model-select').value = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
+
+  $('api-key-input').addEventListener('change', e => {
+    const v = e.target.value.trim();
+    if (v) localStorage.setItem(LS_API_KEY, v); else localStorage.removeItem(LS_API_KEY);
+  });
+  $('ai-model-select').addEventListener('change', e => localStorage.setItem(LS_AI_MODEL, e.target.value));
+
+  $('btn-paste-receipt').addEventListener('click', () => $('receipt-dialog').showModal());
+  $('btn-receipt-settings').addEventListener('click', () => {
+    const s = $('receipt-settings');
+    s.hidden = !s.hidden;
+  });
+
+  $('btn-parse-receipt-text').addEventListener('click', async () => {
+    const text = $('receipt-textarea').value.trim();
+    if (!text) return;
+    const status = $('receipt-dialog-status');
+    try {
+      status.textContent = 'Разбираю…';
+      let parsed;
+      try {
+        parsed = parseReceiptText(text);
+      } catch (heuristicError) {
+        // локально не разобрался — пробуем через Claude, если есть ключ
+        if (localStorage.getItem(LS_API_KEY)) {
+          status.textContent = 'Локально не разобрала, отправляю в Claude…';
+          parsed = await parseReceiptWithClaude({ text });
+        } else throw heuristicError;
+      }
+      addReceipt(parsed, 'text');
+      $('receipt-textarea').value = '';
+      status.textContent = '';
+      $('receipt-dialog').close();
+      renderReceipts();
+    } catch (e) {
+      status.textContent = '⚠️ ' + e.message;
+    }
+  });
+
+  $('receipt-photo-input').addEventListener('change', async e => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    const status = $('receipts-status');
+    for (const file of files) {
+      try {
+        status.textContent = `Распознаю ${file.name} через Claude…`;
+        const buf = await file.arrayBuffer();
+        const base64 = arrayBufferToBase64(buf);
+        const mediaType = file.type || 'image/jpeg';
+        const parsed = await parseReceiptWithClaude({ base64, mediaType });
+        addReceipt(parsed, 'photo');
+        renderReceipts();
+        status.textContent = '';
+      } catch (err) {
+        status.textContent = '⚠️ ' + err.message;
+      }
+    }
+  });
+}
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/* Отрисовка корзины: учитывает фильтр месяца из основного состояния */
+function renderReceipts() {
+  const month = state.filters.month;
+  const receipts = receiptsState.receipts.filter(r => {
+    if (month === 'all') return true;
+    const rm = r.date.getFullYear() + '-' + String(r.date.getMonth() + 1).padStart(2, '0');
+    return rm === month;
+  });
+
+  const empty = !receiptsState.receipts.length;
+  $('basket-empty').hidden = !empty;
+  $('basket-content').hidden = empty;
+  if (empty) return;
+
+  // агрегация по категориям товаров
+  const byCat = {};
+  const byProduct = {};
+  let totalSum = 0;
+  for (const r of receipts) {
+    for (const it of r.items) {
+      if (it.price <= 0) continue;
+      byCat[it.cat] = byCat[it.cat] || { value: 0, count: 0 };
+      byCat[it.cat].value += it.price;
+      byCat[it.cat].count++;
+      const pk = productKey(it.name);
+      byProduct[pk] = byProduct[pk] || { name: it.name, cat: it.cat, sum: 0, count: 0 };
+      byProduct[pk].sum += it.price;
+      byProduct[pk].count++;
+      totalSum += it.price;
+    }
+  }
+
+  const items = Object.entries(byCat)
+    .sort((a, b) => b[1].value - a[1].value)
+    .map(([catId, v]) => ({
+      name: PRODUCT_CATEGORY_BY_ID[catId].name,
+      icon: PRODUCT_CATEGORY_BY_ID[catId].icon,
+      color: 'var(--accent)',
+      value: v.value,
+      count: v.count,
+      share: totalSum ? Math.round(v.value / totalSum * 100) : 0,
+    }));
+  renderCategoryBars($('basket-categories'), items);
+
+  // топ товаров
+  const top = Object.values(byProduct).sort((a, b) => b.sum - a.sum).slice(0, 12);
+  $('basket-top-products').innerHTML = top.map(p => `
+    <div class="merchant-row">
+      <span class="merchant-name">${escapeHtml(p.name)}
+        <span class="merchant-cat">${PRODUCT_CATEGORY_BY_ID[p.cat].icon} ${PRODUCT_CATEGORY_BY_ID[p.cat].name}</span>
+      </span>
+      <span class="merchant-count">×${p.count}</span>
+      <span class="merchant-sum">${fmtEur(p.sum, 2)}</span>
+    </div>`).join('') || '<p class="card-note">Нет товаров за выбранный период</p>';
+
+  // список чеков
+  const linked = receipts.filter(isReceiptLinked).length;
+  $('basket-note').textContent = receipts.length
+    ? `${receipts.length} чек(ов), ${linked} совпадают с транзакциями из выписки`
+    : 'Нет чеков за выбранный период';
+
+  const catOptions = PRODUCT_CATEGORIES.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  $('receipts-list').innerHTML = receipts.map(r => `
+    <details class="receipt-row">
+      <summary>
+        <span>${fmtDate(r.date)} · <strong>${escapeHtml(r.merchant)}</strong> · ${r.items.length} поз.
+          ${isReceiptLinked(r) ? '<span class="linked-badge" title="Совпадает с транзакцией из выписки">✓ выписка</span>' : ''}
+        </span>
+        <span class="merchant-sum">${fmtEur(r.total, 2)}</span>
+      </summary>
+      <div class="receipt-items">
+        ${r.items.map((it, idx) => `
+          <div class="receipt-item">
+            <span class="receipt-item-name">${escapeHtml(it.name)}</span>
+            <span class="merchant-sum">${fmtEur(it.price, 2)}</span>
+            <select class="cat-select" data-rid="${r.id}" data-idx="${idx}">${catOptions}</select>
+          </div>`).join('')}
+        <div class="receipt-foot">
+          <button class="btn small danger" data-del-receipt="${r.id}">Удалить чек</button>
+        </div>
+      </div>
+    </details>`).join('');
+
+  // проставить выбранные категории и повесить обработчики
+  $('receipts-list').querySelectorAll('.cat-select').forEach(sel => {
+    const receipt = receiptsState.receipts.find(x => x.id === sel.dataset.rid);
+    const item = receipt.items[+sel.dataset.idx];
+    sel.value = item.cat;
+    sel.addEventListener('change', () => {
+      receiptsState.productRules[productKey(item.name)] = sel.value;
+      applyProductRules();
+      persistReceipts();
+      renderReceipts();
+    });
+  });
+  $('receipts-list').querySelectorAll('[data-del-receipt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Удалить этот чек?')) return;
+      receiptsState.receipts = receiptsState.receipts.filter(x => x.id !== btn.dataset.delReceipt);
+      persistReceipts();
+      renderReceipts();
+    });
+  });
+}

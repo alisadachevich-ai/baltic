@@ -100,6 +100,54 @@
       </div>
     </div>
 
+    <!-- ═══ Продуктовая корзина (детализация чеков) ═══ -->
+    <div class="card basket-card">
+      <div class="card-head">
+        <h3>🧺 Продуктовая корзина</h3>
+        <span class="card-note" id="basket-note"></span>
+      </div>
+
+      <div class="basket-actions">
+        <button class="btn small" id="btn-paste-receipt">📋 Вставить текст э-чека</button>
+        <label class="btn small">
+          📷 Фото / PDF чека (через Claude)
+          <input type="file" id="receipt-photo-input" accept="image/*,application/pdf" multiple hidden>
+        </label>
+        <button class="btn small ghost" id="btn-receipt-settings">⚙️ Настройки</button>
+        <span class="card-note" id="receipts-status"></span>
+      </div>
+
+      <div class="receipt-settings" id="receipt-settings" hidden>
+        <p class="hint">Для распознавания фото нужен API-ключ Anthropic (<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">создать</a>).
+        Ключ хранится только в этом браузере; на сервер уходят только фото чеков, которые ты сама загружаешь.</p>
+        <div class="settings-row">
+          <input type="password" id="api-key-input" class="control grow" placeholder="sk-ant-…" autocomplete="off">
+          <select id="ai-model-select" class="control">
+            <option value="claude-opus-4-8">Opus 4.8 — максимум качества</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 — дешевле</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="hint" id="basket-empty">В банковской выписке видно только «Rimi −23,45 €» — что именно куплено, знает лишь чек.
+      Скопируй текст э-чека из Mans Rimi / приложения Maxima или сфотографируй бумажный чек — и здесь появится разбивка по товарам.</p>
+
+      <div id="basket-content" hidden>
+        <div class="basket-grid">
+          <div>
+            <h4 class="subhead">По категориям товаров</h4>
+            <div id="basket-categories"></div>
+          </div>
+          <div>
+            <h4 class="subhead">Топ товаров</h4>
+            <div id="basket-top-products"></div>
+          </div>
+        </div>
+        <h4 class="subhead">Чеки</h4>
+        <div id="receipts-list"></div>
+      </div>
+    </div>
+
     <div class="card table-card">
       <div class="card-head">
         <h3>Транзакции</h3>
@@ -121,6 +169,17 @@
 
   </section>
 
+  <dialog id="receipt-dialog">
+    <h3>Вставь текст чека</h3>
+    <p class="hint">Открой э-чек в Mans Rimi или приложении Maxima, выдели список покупок с ценами и скопируй сюда.</p>
+    <textarea id="receipt-textarea" rows="12" placeholder="PIENS EXTRA 2,5% 1L    1,29 A&#10;SIERS KR.SAL. 26%&#10;0,455 kg X 8,49 EUR/kg    3,86 A&#10;Atlaide    -0,50&#10;…&#10;KOPĀ EUR    12,45"></textarea>
+    <div class="dialog-actions">
+      <span class="card-note" id="receipt-dialog-status"></span>
+      <button class="btn" onclick="document.getElementById('receipt-dialog').close()">Отмена</button>
+      <button class="btn primary" id="btn-parse-receipt-text">Разобрать</button>
+    </div>
+  </dialog>
+
   <div class="viz-tooltip" id="viz-tooltip" hidden></div>
 
   <footer class="foot">
@@ -129,9 +188,11 @@
 </div>
 
 <script src="js/categories.js"></script>
+<script src="js/products.js"></script>
 <script src="js/parser.js"></script>
 <script src="js/demo.js"></script>
 <script src="js/charts.js"></script>
+<script src="js/receipts.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

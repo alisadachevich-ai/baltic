@@ -144,6 +144,7 @@ function render() {
   renderCats(txs);
   renderMerchants(txs);
   renderTable(txs);
+  renderReceipts();
 }
 
 function renderKPIs(txs) {
@@ -327,6 +328,7 @@ function showEmpty() {
 function init() {
   initTheme();
   restore();
+  initReceiptsUI();
 
   // dropzone
   const dz = $('dropzone');
@@ -356,8 +358,12 @@ function init() {
     if (!confirm('Удалить все загруженные данные и правила категорий из этого браузера?')) return;
     localStorage.removeItem(LS_TX);
     localStorage.removeItem(LS_RULES);
+    localStorage.removeItem(LS_RECEIPTS);
+    localStorage.removeItem(LS_PRODUCT_RULES);
     state.transactions = [];
     state.userRules = {};
+    receiptsState.receipts = [];
+    receiptsState.productRules = {};
     state.filters = { month: 'all', cat: 'all', q: '' };
     showEmpty();
   });
