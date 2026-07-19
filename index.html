@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Финансовый аудит — расходы по картам</title>
+<link rel="stylesheet" href="styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1>💳 Финансовый аудит</h1>
+      <p class="subtitle">Rimi, Maxima, Lidl и все остальные — по полочкам</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="btn-theme" title="Переключить тему">🌗</button>
+      <button class="btn ghost" id="btn-export" hidden>⬇ Экспорт CSV</button>
+      <button class="btn ghost danger" id="btn-clear" hidden>Очистить данные</button>
+    </div>
+  </header>
+
+  <!-- ═══ Пустое состояние: загрузка ═══ -->
+  <section id="empty-state">
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-inner">
+        <div class="dropzone-icon">📄</div>
+        <h2>Перетащи сюда выписку по карте</h2>
+        <p>CSV-файлы из Swedbank, SEB, Citadele, Luminor, Revolut — можно несколько сразу.<br>
+        Всё обрабатывается <strong>локально в браузере</strong>: данные никуда не отправляются.</p>
+        <div class="dropzone-buttons">
+          <label class="btn primary">
+            Выбрать файлы
+            <input type="file" id="file-input" accept=".csv,.txt" multiple hidden>
+          </label>
+          <button class="btn" id="btn-demo">Попробовать на демо-данных</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="howto">
+      <h3>Как выгрузить выписку</h3>
+      <div class="howto-grid">
+        <div class="howto-card">
+          <h4>Swedbank</h4>
+          <p>Интернет-банк → Konts → Konta pārskats → выбери период → <em>Saglabāt kā CSV</em>.</p>
+        </div>
+        <div class="howto-card">
+          <h4>SEB</h4>
+          <p>Интернет-банк → Konta pārskats → период → скачать в формате CSV.</p>
+        </div>
+        <div class="howto-card">
+          <h4>Revolut</h4>
+          <p>Приложение → счёт → Statement → формат <em>Excel/CSV</em> → выбери период.</p>
+        </div>
+        <div class="howto-card">
+          <h4>Другой банк</h4>
+          <p>Подойдёт почти любой CSV: аппка сама найдёт колонки с датой, суммой и описанием.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Дашборд ═══ -->
+  <section id="dashboard" hidden>
+
+    <!-- Единый ряд фильтров над всеми графиками -->
+    <div class="filter-row" id="filter-row">
+      <select id="filter-month" class="control"></select>
+      <select id="filter-cat" class="control"></select>
+      <input type="search" id="filter-q" class="control grow" placeholder="Поиск по описанию или мерчанту…">
+      <label class="btn small">
+        + Добавить выписку
+        <input type="file" id="file-input-more" accept=".csv,.txt" multiple hidden>
+      </label>
+    </div>
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="charts-grid">
+      <div class="card chart-card wide">
+        <div class="card-head">
+          <h3>Расходы по месяцам</h3>
+          <span class="card-note" id="monthly-note"></span>
+        </div>
+        <div id="chart-monthly"></div>
+        <div class="legend" id="legend-monthly"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head"><h3>По категориям</h3></div>
+        <div id="chart-categories"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head"><h3>Топ мерчантов</h3></div>
+        <div id="top-merchants"></div>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <div class="card-head">
+        <h3>Транзакции</h3>
+        <span class="card-note" id="tx-count"></span>
+      </div>
+      <p class="hint">Категория определена автоматически — если ошиблась, поменяй в списке: правило запомнится для этого мерчанта.</p>
+      <div class="table-wrap">
+        <table id="tx-table">
+          <thead>
+            <tr><th>Дата</th><th>Мерчант / описание</th><th class="num">Сумма</th><th>Категория</th></tr>
+          </thead>
+          <tbody id="tx-tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <button class="btn small" id="btn-more-rows" hidden>Показать ещё</button>
+      </div>
+    </div>
+
+  </section>
+
+  <div class="viz-tooltip" id="viz-tooltip" hidden></div>
+
+  <footer class="foot">
+    <p>Данные хранятся только в этом браузере (localStorage). Ничего не загружается на сервер.</p>
+  </footer>
+</div>
+
+<script src="js/categories.js"></script>
+<script src="js/parser.js"></script>
+<script src="js/demo.js"></script>
+<script src="js/charts.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
