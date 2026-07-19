@@ -102,18 +102,11 @@ function receiptPrompt() {
   return `Это кассовый чек из магазина (скорее всего Латвия: Rimi, Maxima, Lidl и т.п., названия товаров на латышском). Извлеки все товарные позиции с итоговыми ценами (учти скидки: строка "Atlaide" со знаком минус относится к товару выше). Депозит за тару (Depozīts) и пакеты — отдельные позиции категории deposit. Категории: ${cats}. Верни JSON по схеме.`;
 }
 
-async function parseReceiptWithClaude({ base64, mediaType, text }) {
+/* Общий вызов Claude API со структурированным выводом по схеме */
+async function claudeExtract({ content, schema, maxTokens = 8192 }) {
   const apiKey = localStorage.getItem(LS_API_KEY);
-  if (!apiKey) throw new Error('Сначала добавь API-ключ Anthropic в настройках чеков');
+  if (!apiKey) throw new Error('Нужен API-ключ Anthropic — добавь его в ⚙️ настройках раздела «Продуктовая корзина»');
   const model = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
-
-  const content = [];
-  if (base64) {
-    content.push(mediaType === 'application/pdf'
-      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
-      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } });
-  }
-  content.push({ type: 'text', text: receiptPrompt() + (text ? '\n\nТекст чека:\n' + text : '') });
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -125,8 +118,8 @@ async function parseReceiptWithClaude({ base64, mediaType, text }) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
-      output_config: { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } },
+      max_tokens: maxTokens,
+      output_config: { format: { type: 'json_schema', schema } },
       messages: [{ role: 'user', content }],
     }),
   });
@@ -137,15 +130,79 @@ async function parseReceiptWithClaude({ base64, mediaType, text }) {
   }
   const data = await resp.json();
   if (data.stop_reason === 'refusal') throw new Error('Модель отказалась обрабатывать этот файл');
+  if (data.stop_reason === 'max_tokens') throw new Error('Документ слишком большой для одного запроса — раздели PDF на части');
   const textBlock = data.content.find(b => b.type === 'text');
   if (!textBlock) throw new Error('Пустой ответ от Claude API');
-  const parsed = JSON.parse(textBlock.text);
+  return JSON.parse(textBlock.text);
+}
+
+async function parseReceiptWithClaude({ base64, mediaType, text }) {
+  const content = [];
+  if (base64) {
+    content.push(mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } });
+  }
+  content.push({ type: 'text', text: receiptPrompt() + (text ? '\n\nТекст чека:\n' + text : '') });
+
+  const parsed = await claudeExtract({ content, schema: RECEIPT_SCHEMA });
   return {
     merchant: parsed.merchant,
     date: parsed.date ? parseDateStr(parsed.date) : new Date(),
     total: parsed.total,
     items: parsed.items.map(it => ({ name: it.name, price: it.price, cat: it.category })),
   };
+}
+
+/* ── PDF-выписка банка через Claude API ── */
+const STATEMENT_SCHEMA = {
+  type: 'object',
+  properties: {
+    transactions: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'Дата операции YYYY-MM-DD' },
+          description: { type: 'string', description: 'Описание операции: получатель и назначение платежа как в выписке' },
+          amount: { type: 'number', description: 'Сумма в EUR: отрицательная для расходов/списаний, положительная для поступлений' },
+          currency: { type: 'string', description: 'Валюта, например EUR' },
+        },
+        required: ['date', 'description', 'amount', 'currency'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['transactions'],
+  additionalProperties: false,
+};
+
+async function parseStatementPdfWithClaude(buf, fileName) {
+  const base64 = arrayBufferToBase64(buf);
+  const parsed = await claudeExtract({
+    content: [
+      { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+      { type: 'text', text: 'Это PDF-выписка по банковскому счёту/карте (скорее всего латвийский банк: Swedbank, SEB, Luminor, Citadele, Indexo или Revolut). Извлеки ВСЕ операции: дату, полное описание (получатель + назначение), сумму со знаком (расход/списание — минус, поступление — плюс) и валюту. Пропусти строки остатков (sākuma/beigu atlikums), оборотов (apgrozījums) и промежуточные итоги. Верни JSON по схеме.' },
+    ],
+    schema: STATEMENT_SCHEMA,
+    maxTokens: 16000,
+  });
+
+  const txs = [];
+  for (const t of parsed.transactions) {
+    const date = parseDateStr(t.date);
+    if (!date || typeof t.amount !== 'number') continue;
+    txs.push({
+      date,
+      month: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'),
+      desc: t.description,
+      amount: t.amount,
+      currency: t.currency || 'EUR',
+      source: fileName,
+    });
+  }
+  if (!txs.length) throw new Error('Не нашла операций в PDF: ' + fileName);
+  return txs;
 }
 
 /* ── UI ── */

@@ -71,6 +71,13 @@ function restore() {
 }
 
 /* ── Приём файлов ── */
+function setUploadStatus(msg) {
+  for (const id of ['upload-status', 'upload-status-2']) {
+    const el = $(id);
+    if (el) el.textContent = msg;
+  }
+}
+
 async function handleFiles(fileList) {
   const errors = [];
   let added = 0;
@@ -79,7 +86,14 @@ async function handleFiles(fileList) {
   for (const file of fileList) {
     try {
       const buf = await file.arrayBuffer();
-      const txs = parseStatement(buf, file.name);
+      const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+      let txs;
+      if (isPdf) {
+        setUploadStatus(`Читаю ${file.name} через Claude — это может занять минуту…`);
+        txs = await parseStatementPdfWithClaude(buf, file.name);
+      } else {
+        txs = parseStatement(buf, file.name);
+      }
       for (const t of txs) {
         const key = t.date.getTime() + '|' + t.amount + '|' + t.desc;
         if (seen.has(key)) continue;   // дедупликация при повторной загрузке
@@ -92,6 +106,7 @@ async function handleFiles(fileList) {
     }
   }
 
+  setUploadStatus('');
   if (errors.length) alert('Проблемы при чтении:\n' + errors.join('\n'));
   if (added) {
     applyCategories(state.transactions);

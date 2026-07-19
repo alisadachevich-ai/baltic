@@ -28,15 +28,16 @@
       <div class="dropzone-inner">
         <div class="dropzone-icon">📄</div>
         <h2>Перетащи сюда выписку по карте</h2>
-        <p>CSV-файлы из Swedbank, SEB, Citadele, Luminor, Revolut — можно несколько сразу.<br>
-        Всё обрабатывается <strong>локально в браузере</strong>: данные никуда не отправляются.</p>
+        <p>CSV из Swedbank, SEB, Citadele, Luminor, Revolut — можно несколько сразу; CSV обрабатывается <strong>локально в браузере</strong>.<br>
+        PDF-выписки тоже можно: они распознаются через Claude API (нужен ключ — ⚙️ в разделе чеков).</p>
         <div class="dropzone-buttons">
           <label class="btn primary">
             Выбрать файлы
-            <input type="file" id="file-input" accept=".csv,.txt" multiple hidden>
+            <input type="file" id="file-input" accept=".csv,.txt,.pdf" multiple hidden>
           </label>
           <button class="btn" id="btn-demo">Попробовать на демо-данных</button>
         </div>
+        <p class="card-note" id="upload-status"></p>
       </div>
     </div>
 
@@ -73,8 +74,9 @@
       <input type="search" id="filter-q" class="control grow" placeholder="Поиск по описанию или мерчанту…">
       <label class="btn small">
         + Добавить выписку
-        <input type="file" id="file-input-more" accept=".csv,.txt" multiple hidden>
+        <input type="file" id="file-input-more" accept=".csv,.txt,.pdf" multiple hidden>
       </label>
+      <span class="card-note" id="upload-status-2"></span>
     </div>
 
     <div class="kpi-row" id="kpi-row"></div>
