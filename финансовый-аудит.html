@@ -1,0 +1,2026 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Финансовый аудит — расходы по картам</title>
+<style>
+/* ── Токены: светлая тема ─────────────────────────────────── */
+:root {
+  color-scheme: light;
+  --page:           #f9f9f7;
+  --surface-1:      #fcfcfb;
+  --text-primary:   #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted:     #898781;
+  --grid:           #e1e0d9;
+  --baseline:       #c3c2b7;
+  --border:         rgba(11, 11, 11, 0.10);
+  --accent:         #2a78d6;
+  --good:           #006300;
+  --bad:            #d03b3b;
+  --other:          #898781;
+
+  --series-1: #2a78d6;
+  --series-2: #008300;
+  --series-3: #e87ba4;
+  --series-4: #eda100;
+  --series-5: #1baf7a;
+  --series-6: #eb6834;
+  --series-7: #4a3aa7;
+  --series-8: #e34948;
+}
+
+/* ── Тёмная тема ──────────────────────────────────────────── */
+[data-theme="dark"] {
+  color-scheme: dark;
+  --page:           #0d0d0d;
+  --surface-1:      #1a1a19;
+  --text-primary:   #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted:     #898781;
+  --grid:           #2c2c2a;
+  --baseline:       #383835;
+  --border:         rgba(255, 255, 255, 0.10);
+  --accent:         #3987e5;
+  --good:           #0ca30c;
+  --bad:            #e66767;
+  --other:          #898781;
+
+  --series-1: #3987e5;
+  --series-2: #008300;
+  --series-3: #d55181;
+  --series-4: #c98500;
+  --series-5: #199e70;
+  --series-6: #d95926;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--page);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.app { max-width: 1080px; margin: 0 auto; padding: 24px 20px 48px; }
+
+/* ── Шапка ────────────────────────────────────────────────── */
+.topbar { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+.topbar h1 { font-size: 24px; font-weight: 700; }
+.subtitle { color: var(--text-secondary); font-size: 14px; }
+.topbar-actions { display: flex; gap: 8px; }
+
+/* ── Кнопки и контролы ────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary);
+  font: inherit; font-size: 14px; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; }
+.btn.small { padding: 5px 12px; font-size: 13px; }
+.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+
+.control {
+  padding: 8px 12px; border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1); color: var(--text-primary);
+  font: inherit; font-size: 14px;
+}
+.control.grow { flex: 1; min-width: 180px; }
+
+/* ── Пустое состояние ─────────────────────────────────────── */
+.dropzone {
+  border: 2px dashed var(--baseline); border-radius: 16px;
+  background: var(--surface-1);
+  padding: 48px 24px; text-align: center;
+  transition: border-color .15s, background .15s;
+}
+.dropzone.dragover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface-1)); }
+.dropzone-icon { font-size: 40px; margin-bottom: 12px; }
+.dropzone h2 { font-size: 20px; margin-bottom: 8px; }
+.dropzone p { color: var(--text-secondary); margin-bottom: 20px; }
+.dropzone-buttons { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+.howto { margin-top: 32px; }
+.howto h3 { font-size: 16px; margin-bottom: 12px; }
+.howto-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.howto-card { background: var(--surface-1); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; }
+.howto-card h4 { font-size: 14px; margin-bottom: 4px; }
+.howto-card p { font-size: 13px; color: var(--text-secondary); }
+
+/* ── Фильтры ──────────────────────────────────────────────── */
+.filter-row { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
+
+/* ── KPI ──────────────────────────────────────────────────── */
+.kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.kpi {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.kpi-label { font-size: 13px; color: var(--text-secondary); margin-bottom: 4px; }
+.kpi-value { font-size: 26px; font-weight: 700; line-height: 1.2; }
+.kpi-sub { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.kpi-value.bad { color: var(--bad); }
+.kpi-value.good { color: var(--good); }
+
+/* ── Карточки и графики ───────────────────────────────────── */
+.charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.charts-grid .wide { grid-column: 1 / -1; }
+@media (max-width: 760px) { .charts-grid { grid-template-columns: 1fr; } }
+
+.card {
+  background: var(--surface-1); border: 1px solid var(--border);
+  border-radius: 12px; padding: 16px;
+}
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-bottom: 10px; }
+.card-head h3 { font-size: 15px; font-weight: 600; }
+.card-note { font-size: 13px; color: var(--text-muted); }
+
+.chart-card svg { display: block; width: 100%; height: auto; }
+.chart-card text { font-family: inherit; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; }
+.legend-item { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary); }
+.legend-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+
+/* горизонтальные категории — строки бар-чарта */
+.catbar-row { display: grid; grid-template-columns: 150px 1fr 76px; align-items: center; gap: 10px; padding: 4px 0; font-size: 13px; }
+.catbar-name { color: var(--text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.catbar-track { height: 14px; border-radius: 4px; position: relative; }
+.catbar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; min-width: 2px; }
+.catbar-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
+
+/* топ мерчантов */
+.merchant-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
+.merchant-row:last-child { border-bottom: none; }
+.merchant-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.merchant-cat { display: inline-flex; align-items: center; gap: 5px; color: var(--text-muted); font-size: 12px; }
+.merchant-sum { font-variant-numeric: tabular-nums; text-align: right; }
+.merchant-count { color: var(--text-muted); font-size: 12px; }
+
+/* ── Таблица транзакций ───────────────────────────────────── */
+.table-card .hint { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+.table-wrap { overflow-x: auto; }
+#tx-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#tx-table th {
+  text-align: left; font-weight: 600; color: var(--text-secondary);
+  padding: 8px 10px; border-bottom: 1px solid var(--baseline);
+  position: sticky; top: 0; background: var(--surface-1);
+}
+#tx-table td { padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+#tx-table .num, #tx-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tx-desc { color: var(--text-muted); font-size: 12px; display: block; max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tx-merchant { font-weight: 500; }
+.amount-neg { color: var(--text-primary); }
+.amount-pos { color: var(--good); }
+.cat-select { max-width: 190px; padding: 4px 6px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface-1); color: var(--text-primary); }
+.table-foot { margin-top: 10px; text-align: center; }
+
+/* ── Тултип ───────────────────────────────────────────────── */
+.viz-tooltip {
+  position: fixed; z-index: 50; pointer-events: none;
+  background: var(--surface-1); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.14);
+  padding: 8px 12px; font-size: 13px; max-width: 260px;
+}
+.viz-tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+.viz-tooltip .tt-row { display: flex; justify-content: space-between; gap: 16px; }
+.viz-tooltip .tt-row .v { font-variant-numeric: tabular-nums; }
+
+.foot { margin-top: 32px; text-align: center; font-size: 12px; color: var(--text-muted); }
+
+/* ── Продуктовая корзина ─────────────────────────────────── */
+.basket-card { margin-bottom: 16px; }
+.basket-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.basket-card .hint { font-size: 13px; color: var(--text-muted); }
+.receipt-settings { border: 1px solid var(--grid); border-radius: 10px; padding: 12px; margin-bottom: 12px; }
+.receipt-settings a { color: var(--accent); }
+.settings-row { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.basket-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 8px 0 12px; }
+@media (max-width: 760px) { .basket-grid { grid-template-columns: 1fr; } }
+.subhead { font-size: 13.5px; font-weight: 600; color: var(--text-secondary); margin: 10px 0 6px; }
+
+.receipt-row { border: 1px solid var(--grid); border-radius: 10px; margin-bottom: 6px; padding: 0 12px; }
+.receipt-row summary {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding: 9px 0; cursor: pointer; font-size: 13px; list-style: none;
+}
+.receipt-row summary::-webkit-details-marker { display: none; }
+.linked-badge { color: var(--good); font-size: 12px; margin-left: 6px; }
+.receipt-items { border-top: 1px solid var(--grid); padding: 8px 0 10px; }
+.receipt-item { display: grid; grid-template-columns: 1fr 70px 180px; gap: 10px; align-items: center; padding: 3px 0; font-size: 13px; }
+.receipt-item-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.receipt-foot { margin-top: 8px; text-align: right; }
+
+/* ── Диалог ──────────────────────────────────────────────── */
+dialog {
+  border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface-1); color: var(--text-primary);
+  padding: 20px; width: min(560px, 92vw);
+}
+dialog::backdrop { background: rgba(0, 0, 0, .45); }
+dialog h3 { margin-bottom: 6px; }
+dialog .hint { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+dialog textarea {
+  width: 100%; font: 12.5px/1.5 ui-monospace, monospace;
+  background: var(--page); color: var(--text-primary);
+  border: 1px solid var(--border); border-radius: 8px; padding: 10px; resize: vertical;
+}
+.dialog-actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; }
+
+</style>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>💳</text></svg>">
+</head>
+<body>
+<div class="app" id="app">
+
+  <header class="topbar">
+    <div class="topbar-title">
+      <h1>💳 Финансовый аудит</h1>
+      <p class="subtitle">Rimi, Maxima, Lidl и все остальные — по полочкам</p>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn ghost" id="btn-theme" title="Переключить тему">🌗</button>
+      <button class="btn ghost" id="btn-export" hidden>⬇ Экспорт CSV</button>
+      <button class="btn ghost danger" id="btn-clear" hidden>Очистить данные</button>
+    </div>
+  </header>
+
+  <!-- ═══ Пустое состояние: загрузка ═══ -->
+  <section id="empty-state">
+    <div class="dropzone" id="dropzone">
+      <div class="dropzone-inner">
+        <div class="dropzone-icon">📄</div>
+        <h2>Перетащи сюда выписку по карте</h2>
+        <p>CSV-файлы из Swedbank, SEB, Citadele, Luminor, Revolut — можно несколько сразу.<br>
+        Всё обрабатывается <strong>локально в браузере</strong>: данные никуда не отправляются.</p>
+        <div class="dropzone-buttons">
+          <label class="btn primary">
+            Выбрать файлы
+            <input type="file" id="file-input" accept=".csv,.txt" multiple hidden>
+          </label>
+          <button class="btn" id="btn-demo">Попробовать на демо-данных</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="howto">
+      <h3>Как выгрузить выписку</h3>
+      <div class="howto-grid">
+        <div class="howto-card">
+          <h4>Swedbank</h4>
+          <p>Интернет-банк → Konts → Konta pārskats → выбери период → <em>Saglabāt kā CSV</em>.</p>
+        </div>
+        <div class="howto-card">
+          <h4>SEB</h4>
+          <p>Интернет-банк → Konta pārskats → период → скачать в формате CSV.</p>
+        </div>
+        <div class="howto-card">
+          <h4>Revolut</h4>
+          <p>Приложение → счёт → Statement → формат <em>Excel/CSV</em> → выбери период.</p>
+        </div>
+        <div class="howto-card">
+          <h4>Другой банк</h4>
+          <p>Подойдёт почти любой CSV: аппка сама найдёт колонки с датой, суммой и описанием.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ Дашборд ═══ -->
+  <section id="dashboard" hidden>
+
+    <!-- Единый ряд фильтров над всеми графиками -->
+    <div class="filter-row" id="filter-row">
+      <select id="filter-month" class="control"></select>
+      <select id="filter-cat" class="control"></select>
+      <input type="search" id="filter-q" class="control grow" placeholder="Поиск по описанию или мерчанту…">
+      <label class="btn small">
+        + Добавить выписку
+        <input type="file" id="file-input-more" accept=".csv,.txt" multiple hidden>
+      </label>
+    </div>
+
+    <div class="kpi-row" id="kpi-row"></div>
+
+    <div class="charts-grid">
+      <div class="card chart-card wide">
+        <div class="card-head">
+          <h3>Расходы по месяцам</h3>
+          <span class="card-note" id="monthly-note"></span>
+        </div>
+        <div id="chart-monthly"></div>
+        <div class="legend" id="legend-monthly"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head"><h3>По категориям</h3></div>
+        <div id="chart-categories"></div>
+      </div>
+
+      <div class="card chart-card">
+        <div class="card-head"><h3>Топ мерчантов</h3></div>
+        <div id="top-merchants"></div>
+      </div>
+    </div>
+
+    <!-- ═══ Продуктовая корзина (детализация чеков) ═══ -->
+    <div class="card basket-card">
+      <div class="card-head">
+        <h3>🧺 Продуктовая корзина</h3>
+        <span class="card-note" id="basket-note"></span>
+      </div>
+
+      <div class="basket-actions">
+        <button class="btn small" id="btn-paste-receipt">📋 Вставить текст э-чека</button>
+        <label class="btn small">
+          📷 Фото / PDF чека (через Claude)
+          <input type="file" id="receipt-photo-input" accept="image/*,application/pdf" multiple hidden>
+        </label>
+        <button class="btn small ghost" id="btn-receipt-settings">⚙️ Настройки</button>
+        <span class="card-note" id="receipts-status"></span>
+      </div>
+
+      <div class="receipt-settings" id="receipt-settings" hidden>
+        <p class="hint">Для распознавания фото нужен API-ключ Anthropic (<a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">создать</a>).
+        Ключ хранится только в этом браузере; на сервер уходят только фото чеков, которые ты сама загружаешь.</p>
+        <div class="settings-row">
+          <input type="password" id="api-key-input" class="control grow" placeholder="sk-ant-…" autocomplete="off">
+          <select id="ai-model-select" class="control">
+            <option value="claude-opus-4-8">Opus 4.8 — максимум качества</option>
+            <option value="claude-haiku-4-5-20251001">Haiku 4.5 — дешевле</option>
+          </select>
+        </div>
+      </div>
+
+      <p class="hint" id="basket-empty">В банковской выписке видно только «Rimi −23,45 €» — что именно куплено, знает лишь чек.
+      Скопируй текст э-чека из Mans Rimi / приложения Maxima или сфотографируй бумажный чек — и здесь появится разбивка по товарам.</p>
+
+      <div id="basket-content" hidden>
+        <div class="basket-grid">
+          <div>
+            <h4 class="subhead">По категориям товаров</h4>
+            <div id="basket-categories"></div>
+          </div>
+          <div>
+            <h4 class="subhead">Топ товаров</h4>
+            <div id="basket-top-products"></div>
+          </div>
+        </div>
+        <h4 class="subhead">Чеки</h4>
+        <div id="receipts-list"></div>
+      </div>
+    </div>
+
+    <div class="card table-card">
+      <div class="card-head">
+        <h3>Транзакции</h3>
+        <span class="card-note" id="tx-count"></span>
+      </div>
+      <p class="hint">Категория определена автоматически — если ошиблась, поменяй в списке: правило запомнится для этого мерчанта.</p>
+      <div class="table-wrap">
+        <table id="tx-table">
+          <thead>
+            <tr><th>Дата</th><th>Мерчант / описание</th><th class="num">Сумма</th><th>Категория</th></tr>
+          </thead>
+          <tbody id="tx-tbody"></tbody>
+        </table>
+      </div>
+      <div class="table-foot">
+        <button class="btn small" id="btn-more-rows" hidden>Показать ещё</button>
+      </div>
+    </div>
+
+  </section>
+
+  <dialog id="receipt-dialog">
+    <h3>Вставь текст чека</h3>
+    <p class="hint">Открой э-чек в Mans Rimi или приложении Maxima, выдели список покупок с ценами и скопируй сюда.</p>
+    <textarea id="receipt-textarea" rows="12" placeholder="PIENS EXTRA 2,5% 1L    1,29 A&#10;SIERS KR.SAL. 26%&#10;0,455 kg X 8,49 EUR/kg    3,86 A&#10;Atlaide    -0,50&#10;…&#10;KOPĀ EUR    12,45"></textarea>
+    <div class="dialog-actions">
+      <span class="card-note" id="receipt-dialog-status"></span>
+      <button class="btn" onclick="document.getElementById('receipt-dialog').close()">Отмена</button>
+      <button class="btn primary" id="btn-parse-receipt-text">Разобрать</button>
+    </div>
+  </dialog>
+
+  <div class="viz-tooltip" id="viz-tooltip" hidden></div>
+
+  <footer class="foot">
+    <p>Данные хранятся только в этом браузере (localStorage). Ничего не загружается на сервер.</p>
+  </footer>
+</div>
+
+<script>
+/* Категории и словарь мерчантов (Латвия / Балтия).
+   Порядок в CATEGORIES фиксированный — от него зависит и порядок в
+   выпадающих списках. Цвета графикам назначаются отдельно, по объёму трат. */
+
+const CATEGORIES = [
+  { id: 'groceries',    name: 'Продукты',            icon: '🛒' },
+  { id: 'cafe',         name: 'Кафе и рестораны',    icon: '☕' },
+  { id: 'delivery',     name: 'Доставка еды',        icon: '🛵' },
+  { id: 'transport',    name: 'Транспорт',           icon: '🚌' },
+  { id: 'fuel',         name: 'Авто и топливо',      icon: '⛽' },
+  { id: 'health',       name: 'Аптеки и здоровье',   icon: '💊' },
+  { id: 'beauty',       name: 'Красота и уход',      icon: '💅' },
+  { id: 'clothes',      name: 'Одежда и обувь',      icon: '👗' },
+  { id: 'home',         name: 'Дом и быт',           icon: '🏠' },
+  { id: 'electronics',  name: 'Электроника',         icon: '💻' },
+  { id: 'subscriptions',name: 'Подписки и цифровое', icon: '📱' },
+  { id: 'telecom',      name: 'Связь и интернет',    icon: '📡' },
+  { id: 'utilities',    name: 'Коммунальные',        icon: '💡' },
+  { id: 'entertainment',name: 'Развлечения',         icon: '🎬' },
+  { id: 'sport',        name: 'Спорт',               icon: '🏋️' },
+  { id: 'pets',         name: 'Питомцы',             icon: '🐈' },
+  { id: 'travel',       name: 'Путешествия',         icon: '✈️' },
+  { id: 'cash',         name: 'Наличные (банкомат)', icon: '🏧' },
+  { id: 'fees',         name: 'Комиссии банка',      icon: '🏦' },
+  { id: 'transfers',    name: 'Переводы',            icon: '🔁' },
+  { id: 'income',       name: 'Доходы',              icon: '💰' },
+  { id: 'other',        name: 'Прочее',              icon: '📦' },
+];
+
+const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
+
+/* Правила сопоставления: подстрока ищется в описании транзакции,
+   переведённом в верхний регистр. Порядок важен: более специфичные
+   правила ("BOLT FOOD") стоят раньше общих ("BOLT"). */
+const MERCHANT_RULES = [
+  // ── Продукты ──
+  { m: ['RIMI'],                       cat: 'groceries', name: 'Rimi' },
+  { m: ['MAXIMA'],                     cat: 'groceries', name: 'Maxima' },
+  { m: ['LIDL'],                       cat: 'groceries', name: 'Lidl' },
+  { m: ['ELVI'],                       cat: 'groceries', name: 'Elvi' },
+  { m: ['TOP!', 'VEIKALS TOP'],        cat: 'groceries', name: 'top!' },
+  { m: ['MEGO'],                       cat: 'groceries', name: 'Mego' },
+  { m: ['AIBE'],                       cat: 'groceries', name: 'Aibe' },
+  { m: ['CITRO '],                     cat: 'groceries', name: 'Citro' },
+  { m: ['GROSHIK'],                    cat: 'groceries', name: 'Groshik' },
+  { m: ['STOCKMANN DELIKA', 'STOCKMANN PART'], cat: 'groceries', name: 'Stockmann Delikatese' },
+  { m: ['LATS VEIKALS', ' LATS '],     cat: 'groceries', name: 'LaTS' },
+  { m: ['BARBORA'],                    cat: 'groceries', name: 'Barbora' },
+  { m: ['TIRGUS', 'CENTRALTIRGUS'],    cat: 'groceries', name: 'Рынок' },
+
+  // ── Доставка еды (до общих Bolt/Wolt-подобных) ──
+  { m: ['BOLT FOOD', 'BOLTFOOD'],      cat: 'delivery', name: 'Bolt Food' },
+  { m: ['WOLT'],                       cat: 'delivery', name: 'Wolt' },
+  { m: ['FOODOUT'],                    cat: 'delivery', name: 'Foodout' },
+
+  // ── Кафе и рестораны ──
+  { m: ['CAFFEINE'],                   cat: 'cafe', name: 'Caffeine' },
+  { m: ['COSTA COFFEE'],               cat: 'cafe', name: 'Costa Coffee' },
+  { m: ['STARBUCKS'],                  cat: 'cafe', name: 'Starbucks' },
+  { m: ['MCDONALD', 'MCDRIVE'],        cat: 'cafe', name: "McDonald's" },
+  { m: ['HESBURGER'],                  cat: 'cafe', name: 'Hesburger' },
+  { m: ['KFC '],                       cat: 'cafe', name: 'KFC' },
+  { m: ['LIDO'],                       cat: 'cafe', name: 'Lido' },
+  { m: ['NARVESEN'],                   cat: 'cafe', name: 'Narvesen' },
+  { m: ['DOUBLE COFFEE'],              cat: 'cafe', name: 'Double Coffee' },
+  { m: ['ROCKET BEAN'],                cat: 'cafe', name: 'Rocket Bean' },
+  { m: ['SUSHI', 'TOKYO CITY'],        cat: 'cafe', name: 'Суши' },
+  { m: ['PIZZA', 'PICERIJA'],          cat: 'cafe', name: 'Пицца' },
+  { m: ['KEBAB'],                      cat: 'cafe', name: 'Кебаб' },
+  { m: ['RESTOR', 'RESTAUR', 'BISTRO', 'KAFEJNICA', 'KAFEJNĪCA', ' CAFE', 'CAFE '], cat: 'cafe', name: 'Кафе/ресторан' },
+  { m: [' BARS ', ' BAR ', 'PUB '],    cat: 'cafe', name: 'Бар' },
+
+  // ── Транспорт ──
+  { m: ['BOLT DRIVE'],                 cat: 'transport', name: 'Bolt Drive' },
+  { m: ['BOLT.EU', 'BOLT OPERATIONS', 'BOLT RIDE', 'BOLT '], cat: 'transport', name: 'Bolt' },
+  { m: ['RIGAS SATIKSME', 'RĪGAS SATIKSME', 'RIGASSATIKSME'], cat: 'transport', name: 'Rīgas satiksme' },
+  { m: ['MOBILLY'],                    cat: 'transport', name: 'Mobilly' },
+  { m: ['CITYBEE'],                    cat: 'transport', name: 'CityBee' },
+  { m: ['CARGURU'],                    cat: 'transport', name: 'CarGuru' },
+  { m: ['FORAX', 'PANTERA TAXI', 'RED CAB', 'TAXI', 'TAKSI'], cat: 'transport', name: 'Такси' },
+  { m: ['PASAZIERU VILCIENS', 'PASAŽIERU VILCIENS', 'VIVI '], cat: 'transport', name: 'Vivi (поезд)' },
+  { m: ['ECOLINES', 'LUX EXPRESS'],    cat: 'transport', name: 'Междугородний автобус' },
+  { m: ['EUROPARK', 'CITYPARKS', 'PARKING'], cat: 'transport', name: 'Парковка' },
+
+  // ── Авто и топливо ──
+  { m: ['CIRCLE K', 'CIRCLEK'],        cat: 'fuel', name: 'Circle K' },
+  { m: ['NESTE'],                      cat: 'fuel', name: 'Neste' },
+  { m: ['VIRSI', 'VIRŠI'],             cat: 'fuel', name: 'Virši' },
+  { m: ['VIADA'],                      cat: 'fuel', name: 'Viada' },
+  { m: ['GOTIKA AUTO', 'AUTOSERVISS', 'AUTO SERV'], cat: 'fuel', name: 'Автосервис' },
+  { m: ['DEGVIELA', 'UZPILDES'],       cat: 'fuel', name: 'Заправка' },
+
+  // ── Аптеки и здоровье ──
+  { m: ['APOTHEKA'],                   cat: 'health', name: 'Apotheka' },
+  { m: ['MENESS APTIEKA', 'MĒNESS APTIEKA'], cat: 'health', name: 'Mēness aptieka' },
+  { m: ['BENU'],                       cat: 'health', name: 'BENU Aptieka' },
+  { m: ['EUROAPTIEKA'],                cat: 'health', name: 'Euroaptieka' },
+  { m: ['APTIEKA'],                    cat: 'health', name: 'Аптека' },
+  { m: ['VESELIBAS CENTRS', 'VESELĪBAS CENTRS', 'ARS ', 'POLIKLINIKA'], cat: 'health', name: 'Медцентр' },
+  { m: ['ZOBARST', 'DENTAL'],          cat: 'health', name: 'Стоматология' },
+  { m: ['E. GULBJA', 'GULBJA LABORATORIJA', 'CENTRALA LABORATORIJA'], cat: 'health', name: 'Лаборатория' },
+
+  // ── Красота ──
+  { m: ['DROGAS'],                     cat: 'beauty', name: 'Drogas' },
+  { m: ['DOUGLAS'],                    cat: 'beauty', name: 'Douglas' },
+  { m: ['KRISTIANA'],                  cat: 'beauty', name: 'Kristiana' },
+  { m: ['MADARA'],                     cat: 'beauty', name: 'Madara' },
+  { m: ['FRIZETAVA', 'FRIZIER', 'SALONS', 'BEAUTY', 'MANIK'], cat: 'beauty', name: 'Салон' },
+
+  // ── Одежда ──
+  { m: ['H&M', 'H & M', 'HENNES'],     cat: 'clothes', name: 'H&M' },
+  { m: ['ZARA'],                       cat: 'clothes', name: 'Zara' },
+  { m: ['RESERVED'],                   cat: 'clothes', name: 'Reserved' },
+  { m: ['SINSAY'],                     cat: 'clothes', name: 'Sinsay' },
+  { m: ['CROPP'],                      cat: 'clothes', name: 'Cropp' },
+  { m: ['MOHITO'],                     cat: 'clothes', name: 'Mohito' },
+  { m: ['LINDEX'],                     cat: 'clothes', name: 'Lindex' },
+  { m: ['NEW YORKER'],                 cat: 'clothes', name: 'New Yorker' },
+  { m: ['HUMANA'],                     cat: 'clothes', name: 'Humana' },
+  { m: ['VINTED'],                     cat: 'clothes', name: 'Vinted' },
+  { m: ['ABOUT YOU'],                  cat: 'clothes', name: 'About You' },
+  { m: ['ZALANDO'],                    cat: 'clothes', name: 'Zalando' },
+  { m: ['DEICHMANN'],                  cat: 'clothes', name: 'Deichmann' },
+  { m: ['CCC '],                       cat: 'clothes', name: 'CCC' },
+
+  // ── Дом и быт ──
+  { m: ['DEPO'],                       cat: 'home', name: 'Depo' },
+  { m: ['K-SENUKAI', 'KSENUKAI', 'K SENUKAI'], cat: 'home', name: 'K-Senukai' },
+  { m: ['JYSK'],                       cat: 'home', name: 'JYSK' },
+  { m: ['IKEA'],                       cat: 'home', name: 'IKEA' },
+  { m: ['KURSI '],                     cat: 'home', name: 'Kurši' },
+  { m: ['TET VEIKALS'],                cat: 'home', name: 'Tet veikals' },
+  { m: ['ZIEDU', 'FLOWERS'],           cat: 'home', name: 'Цветы' },
+
+  // ── Электроника ──
+  { m: ['RD ELECTRONICS', 'RDVEIKALS'],cat: 'electronics', name: 'RD Electronics' },
+  { m: ['1A.LV', '1A LV'],             cat: 'electronics', name: '1a.lv' },
+  { m: ['220.LV', '220 LV'],           cat: 'electronics', name: '220.lv' },
+  { m: ['EURONICS'],                   cat: 'electronics', name: 'Euronics' },
+  { m: ['DATEKS'],                     cat: 'electronics', name: 'Dateks' },
+  { m: ['CAPITAL '],                   cat: 'electronics', name: 'Capital' },
+
+  // ── Подписки и цифровое ──
+  { m: ['SPOTIFY'],                    cat: 'subscriptions', name: 'Spotify' },
+  { m: ['NETFLIX'],                    cat: 'subscriptions', name: 'Netflix' },
+  { m: ['YOUTUBE', 'GOOGLE YOUTUBE'],  cat: 'subscriptions', name: 'YouTube Premium' },
+  { m: ['GOOGLE ONE', 'GOOGLE STORAGE'], cat: 'subscriptions', name: 'Google One' },
+  { m: ['GOOGLE*', 'GOOGLE PLAY'],     cat: 'subscriptions', name: 'Google Play' },
+  { m: ['APPLE.COM/BILL', 'APPLE COM BILL', 'ITUNES'], cat: 'subscriptions', name: 'Apple' },
+  { m: ['OPENAI', 'CHATGPT'],          cat: 'subscriptions', name: 'OpenAI' },
+  { m: ['ANTHROPIC', 'CLAUDE.AI'],     cat: 'subscriptions', name: 'Anthropic (Claude)' },
+  { m: ['PATREON'],                    cat: 'subscriptions', name: 'Patreon' },
+  { m: ['DISNEY'],                     cat: 'subscriptions', name: 'Disney+' },
+  { m: ['HBO ', 'MAX.COM'],            cat: 'subscriptions', name: 'HBO Max' },
+  { m: ['DROPBOX'],                    cat: 'subscriptions', name: 'Dropbox' },
+  { m: ['NOTION'],                     cat: 'subscriptions', name: 'Notion' },
+  { m: ['CANVA'],                      cat: 'subscriptions', name: 'Canva' },
+  { m: ['AMAZON PRIME'],               cat: 'subscriptions', name: 'Amazon Prime' },
+
+  // ── Связь и интернет ──
+  { m: ['LMT'],                        cat: 'telecom', name: 'LMT' },
+  { m: ['TELE2'],                      cat: 'telecom', name: 'Tele2' },
+  { m: ['BITE', 'BITĒ'],               cat: 'telecom', name: 'Bite' },
+  { m: ['TET '],                       cat: 'telecom', name: 'Tet' },
+  { m: ['BALTICOM'],                   cat: 'telecom', name: 'Balticom' },
+
+  // ── Коммунальные ──
+  { m: ['LATVENERGO', 'ELEKTRUM'],     cat: 'utilities', name: 'Elektrum' },
+  { m: ['RIGAS NAMU', 'RĪGAS NAMU', 'NAMU PARVALDNIEKS'], cat: 'utilities', name: 'Rīgas namu pārvaldnieks' },
+  { m: ['GASO', 'LATVIJAS GAZE', 'LATVIJAS GĀZE'], cat: 'utilities', name: 'Газ' },
+  { m: ['RIGAS UDENS', 'RĪGAS ŪDENS'], cat: 'utilities', name: 'Rīgas ūdens' },
+  { m: ['RIGAS SILTUMS', 'RĪGAS SILTUMS'], cat: 'utilities', name: 'Rīgas siltums' },
+  { m: ['APSAIMNIEKO'],                cat: 'utilities', name: 'Управление домом' },
+
+  // ── Развлечения ──
+  { m: ['FORUM CINEMAS'],              cat: 'entertainment', name: 'Forum Cinemas' },
+  { m: ['APOLLO KINO'],                cat: 'entertainment', name: 'Apollo Kino' },
+  { m: ['KINO CITADELE'],              cat: 'entertainment', name: 'Kino Citadele' },
+  { m: ['STEAM', 'STEAMGAMES'],        cat: 'entertainment', name: 'Steam' },
+  { m: ['BILESU SERVISS', 'BIĻEŠU SERVISS', 'BEZRINDAS'], cat: 'entertainment', name: 'Билеты' },
+  { m: ['DZINTARU KONCERT', 'OPERA'],  cat: 'entertainment', name: 'Концерты' },
+  { m: ['ESCAPE ROOM', 'BOULINGS', 'BOWLING'], cat: 'entertainment', name: 'Развлечения' },
+
+  // ── Спорт ──
+  { m: ['MYFITNESS', 'MY FITNESS'],    cat: 'sport', name: 'MyFitness' },
+  { m: ['LEMON GYM'],                  cat: 'sport', name: 'Lemon Gym' },
+  { m: ['GYM!', 'GYMLATVIA'],          cat: 'sport', name: 'Gym!' },
+  { m: ['FITNESS', 'SPORTA KLUBS'],    cat: 'sport', name: 'Фитнес' },
+  { m: ['SPORTLAND', 'SPORTSDIRECT'],  cat: 'sport', name: 'Спорттовары' },
+
+  // ── Питомцы ──
+  { m: ['ZOOCENTRS', 'ZOO CENTRS', 'DINO ZOO', 'PETCITY', 'ZOOEXPRESS'], cat: 'pets', name: 'Зоомагазин' },
+  { m: ['VETERINAR', 'VETCLINIC', 'VET '], cat: 'pets', name: 'Ветеринар' },
+
+  // ── Путешествия ──
+  { m: ['AIRBNB'],                     cat: 'travel', name: 'Airbnb' },
+  { m: ['BOOKING.COM', 'BOOKING COM'], cat: 'travel', name: 'Booking.com' },
+  { m: ['AIRBALTIC', 'AIR BALTIC'],    cat: 'travel', name: 'airBaltic' },
+  { m: ['RYANAIR'],                    cat: 'travel', name: 'Ryanair' },
+  { m: ['WIZZ AIR', 'WIZZAIR'],        cat: 'travel', name: 'Wizz Air' },
+  { m: ['TALLINK', 'VIKING LINE'],     cat: 'travel', name: 'Паром' },
+  { m: ['HOTEL', 'VIESNICA', 'VIESNĪCA', 'HOSTEL'], cat: 'travel', name: 'Отель' },
+
+  // ── Банк: наличные, комиссии ──
+  { m: ['IZNEMSANA', 'IZŅEMŠANA', 'SKAIDRAS NAUDAS', 'ATM ', 'CASH WITHDRAW', 'BANKOMAT'], cat: 'cash', name: 'Снятие наличных' },
+  { m: ['KOMISIJA', 'KOMISIJAS MAKSA', 'MENESA MAKSA', 'MĒNEŠA MAKSA', 'KARTES MAKSA', ' FEE', 'SERVICE CHARGE', 'APKALPOSANAS MAKSA'], cat: 'fees', name: 'Комиссия банка' },
+
+  // ── Переводы ──
+  { m: ['PAYPAL'],                     cat: 'transfers', name: 'PayPal' },
+  { m: ['REVOLUT TOP-UP', 'TOP-UP', 'TOP UP'], cat: 'transfers', name: 'Пополнение' },
+  { m: ['PARSKAITIJUMS', 'PĀRSKAITĪJUMS', 'TRANSFER TO', 'PERVOD'], cat: 'transfers', name: 'Перевод' },
+];
+
+/* Ключевые слова доходов — применяются только к поступлениям (amount > 0) */
+const INCOME_HINTS = ['ALGA', 'SALARY', 'DARBA SAMAKSA', 'ЗАРПЛАТА', 'AVANSS', 'DIVIDEN', 'ATMAKSA', 'REFUND', 'PROCENTI', 'INTEREST'];
+
+/* Определить категорию и «чистое» имя мерчанта по описанию транзакции. */
+function categorize(desc, amount) {
+  const up = ' ' + String(desc || '').toUpperCase().replace(/\s+/g, ' ').trim() + ' ';
+
+  for (const rule of MERCHANT_RULES) {
+    for (const pat of rule.m) {
+      if (up.includes(pat.toUpperCase())) {
+        // для поступлений от мерчантов (возвраты) оставляем категорию мерчанта
+        return { cat: rule.cat, merchant: rule.name };
+      }
+    }
+  }
+
+  if (amount > 0) {
+    const isIncome = INCOME_HINTS.some(h => up.includes(h));
+    return { cat: isIncome ? 'income' : 'transfers', merchant: extractMerchantName(desc) };
+  }
+  return { cat: 'other', merchant: extractMerchantName(desc) };
+}
+
+/* Достаём читаемое имя мерчанта из сырого описания:
+   убираем маску карты, префикс PIRKUMS, даты и суммы. */
+function extractMerchantName(desc) {
+  let s = String(desc || '')
+    .replace(/PIRKUMS\s*/gi, '')
+    .replace(/\d{4,6}[X*]+\d{2,4}/gi, '')          // маска карты 5449xx...1234
+    .replace(/\d{2}\.\d{2}\.\d{4}/g, '')            // даты
+    .replace(/\d+[.,]\d{2}\s*(EUR|USD|GBP)?/gi, '') // суммы
+    .replace(/\((\d{2}\.\d{2}\.\d{4}).*?\)/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!s) return 'Без описания';
+  const words = s.split(' ').slice(0, 4).join(' ');
+  return words.length > 40 ? words.slice(0, 40) + '…' : words;
+}
+
+</script>
+<script>
+/* Продуктовая корзина: категории товаров, словарь латышских названий,
+   эвристический парсер текстовых э-чеков (Mans Rimi / Maxima Paldies). */
+
+const PRODUCT_CATEGORIES = [
+  { id: 'dairy',     name: 'Молочка и яйца',       icon: '🥛' },
+  { id: 'meat',      name: 'Мясо и рыба',          icon: '🥩' },
+  { id: 'produce',   name: 'Овощи и фрукты',       icon: '🥦' },
+  { id: 'bread',     name: 'Хлеб и выпечка',       icon: '🍞' },
+  { id: 'pantry',    name: 'Бакалея',              icon: '🍝' },
+  { id: 'sweets',    name: 'Сладости и снеки',     icon: '🍫' },
+  { id: 'coffee',    name: 'Кофе и чай',           icon: '☕' },
+  { id: 'drinks',    name: 'Напитки',              icon: '🥤' },
+  { id: 'alcohol',   name: 'Алкоголь',             icon: '🍷' },
+  { id: 'frozen',    name: 'Заморозка и п/ф',      icon: '🧊' },
+  { id: 'ready',     name: 'Готовая еда',          icon: '🍱' },
+  { id: 'household', name: 'Бытовая химия и гигиена', icon: '🧴' },
+  { id: 'homegoods', name: 'Для дома',             icon: '🏠' },
+  { id: 'petfood',   name: 'Зоотовары',            icon: '🐈' },
+  { id: 'deposit',   name: 'Депозит и пакеты',     icon: '♻️' },
+  { id: 'p_other',   name: 'Прочее',               icon: '📦' },
+];
+
+const PRODUCT_CATEGORY_BY_ID = Object.fromEntries(PRODUCT_CATEGORIES.map(c => [c.id, c]));
+
+/* Ключевые слова (латышский + немного английского/русского), верхний регистр.
+   Порядок важен — более специфичные раньше. */
+const PRODUCT_RULES = [
+  // Молочка и яйца
+  { m: ['PIENS', 'JOGURT', 'BIEZPIEN', 'KRĒJUM', 'KREJUM', 'SVIESTS', 'SIERS', 'SIERIŅ', 'SIERIN', 'KEFĪR', 'KEFIR', 'OLAS', 'OLA ', 'PANĪR', 'PANIR', 'SKĀBAIS', 'MILK', 'МОЛОКО', 'ТВОРОГ'], cat: 'dairy' },
+  // Мясо и рыба
+  { m: ['VISTAS', 'VISTA', 'CĀĻA', 'CALA ', 'FILEJA', 'CŪKGAĻ', 'CUKGAL', 'LIELLOP', 'MALTĀ GAĻA', 'MALTA GALA', 'GAĻA', 'GALA ', 'DESA', 'DESIŅ', 'DESIN', 'ŠĶIŅĶ', 'SKINK', 'CĪSIŅ', 'CISIN', 'BEKONS', 'LASIS', 'LAŠA', 'LASA ', 'ZIVS', 'ZIVJU', 'FORELE', 'SIĻĶE', 'SILKE', 'TUNCIS', 'GARNELES', 'HERING'], cat: 'meat' },
+  // Овощи и фрукты
+  { m: ['TOMĀTI', 'TOMATI', 'GURĶI', 'GURKI', 'KARTUPEĻI', 'KARTUPELI', 'SĪPOLI', 'SIPOLI', 'BURKĀNI', 'BURKANI', 'KĀPOSTI', 'KAPOSTI', 'SALĀTI', 'SALATI ', 'PAPRIKA', 'BANĀNI', 'BANANI', 'ĀBOLI', 'ABOLI', 'APELSĪNI', 'APELSINI', 'CITRONI', 'MANDARĪNI', 'MANDARINI', 'VĪNOGAS', 'VINOGAS', 'ZEMENES', 'MELLENES', 'AVOKADO', 'ĶIPLOK', 'KIPLOK', 'CUKĪNI', 'BROKOĻI', 'BROKOLI', 'SĒNES', 'SENES', 'ŠAMPINJONI', 'SAMPINJONI', 'BUMBIERI', 'KIVI', 'PERSIKI', 'DILLE', 'PĒTERSĪĻ'], cat: 'produce' },
+  // Хлеб и выпечка
+  { m: ['MAIZE', 'BAGETE', 'BULCIŅ', 'BULCIN', 'KRUASĀN', 'KRUASAN', 'KŪKA', 'KUKA ', 'PĪRĀGS', 'PIRAGS', 'PĪRĀDZIŅ', 'SMALKMAIZ', 'TOSTERMAIZE', 'LAVAŠ', 'LAVAS', 'TORTILJA'], cat: 'bread' },
+  // Бакалея
+  { m: ['MAKARONI', 'SPAGETI', 'RĪSI', 'RISI ', 'GRIĶI', 'GRIKI', 'AUZU', 'PĀRSLAS', 'PARSLAS', 'MILTI', 'CUKURS', 'SĀLS', 'SALS ', 'EĻĻA', 'ELLA ', 'ETIĶIS', 'MĒRCE', 'MERCE', 'KEČUPS', 'KECUPS', 'MAJONĒZE', 'MAJONEZE', 'KONSERV', 'ZUPA ', 'BULJONS', 'GARŠVIELA', 'GARSVIELA', 'MEDUS', 'IEVĀRĪJUMS', 'DŽEMS', 'DZEMS', 'RIEKSTI', 'MANDELES', 'TUNZIVIS'], cat: 'pantry' },
+  // Сладости и снеки
+  { m: ['ŠOKOLĀDE', 'SOKOLADE', 'KONFEKTES', 'CEPUMI', 'VAFELES', 'BATONIŅ', 'BATONIN', 'ČIPSI', 'CIPSI', 'SALDĒJUMS', 'SALDEJUMS', 'ZEFĪRS', 'ZEFIRS', 'MARMELĀDE', 'KRENDEĻ', 'POPKORNS', 'HALVA', 'GUMIJAS'], cat: 'sweets' },
+  // Кофе и чай
+  { m: ['KAFIJA', 'KAFIJAS', 'ESPRESSO', 'TĒJA', 'TEJA ', 'KAKAO', 'COFFEE'], cat: 'coffee' },
+  // Напитки
+  { m: ['ŪDENS', 'UDENS', 'SULA', 'NEKTĀRS', 'NEKTARS', 'LIMONĀDE', 'LIMONADE', 'KOLA', 'PEPSI', 'FANTA', 'SPRITE', 'DZĒRIENS', 'DZERIENS', 'KVASS', 'ENERĢIJAS', 'ENERGIJAS', 'SMŪTIJS', 'SMUTIJS'], cat: 'drinks' },
+  // Алкоголь
+  { m: ['ALUS', 'VĪNS', 'VINS ', 'SIDRS', 'DEGVĪNS', 'DEGVINS', 'LIĶIERIS', 'LIKIERIS', 'ŠAMPANIETIS', 'SAMPANIETIS', 'VISKIJS', 'DŽINS', 'DZINS', 'RUMS', 'VERMUTS', 'BRENDIJS', 'KONJAKS', 'PROSECCO'], cat: 'alcohol' },
+  // Заморозка и полуфабрикаты
+  { m: ['SALDĒT', 'SALDET', 'PELMEŅI', 'PELMENI', 'PICA', 'FRĪ', 'FRI ', 'KOTLETES', 'NAGGETS', 'VĀRTIŅ'], cat: 'frozen' },
+  // Готовая еда (кулинария)
+  { m: ['KULINĀRIJA', 'KULINARIJA', 'GATAVS', 'GATAVĀ', 'SUŠI', 'SUSI ', 'SVAIGI GATAVOTS', 'ROLLS'], cat: 'ready' },
+  // Бытовая химия и гигиена
+  { m: ['VEĻAS', 'VELAS ', 'TRAUKU', 'MAZGĀŠANAS', 'MAZGASANAS', 'ŠAMPŪNS', 'SAMPUNS', 'ZOBU PASTA', 'ZOBU BIRSTE', 'TUALETES PAPĪRS', 'TUALETES PAPIRS', 'ZIEPES', 'DEZODORANTS', 'SALVETES', 'SALVETĪTES', 'HIGIĒNAS', 'HIGIENAS', 'SKALOŠANAS', 'TĪRĪŠANAS', 'TIRISANAS', 'ATKRITUMU MAISI'], cat: 'household' },
+  // Для дома
+  { m: ['SVECES', 'BATERIJAS', 'SPULDZE', 'FOLIJA', 'CEPAMPAPĪRS', 'CEPAMPAPIRS', 'TRAUKI ', 'GLĀZES', 'GLAZES'], cat: 'homegoods' },
+  // Зоотовары
+  { m: ['KAĶU', 'KAKU ', 'SUŅU', 'SUNU ', 'BARĪBA', 'BARIBA', 'PAKAIŠI', 'PAKAISI'], cat: 'petfood' },
+  // Депозит и пакеты
+  { m: ['DEPOZĪTS', 'DEPOZITS', 'DEPOZĪTA', 'DEPOZITA', 'MAISIŅŠ', 'MAISINS', 'MAISIŅ', 'IEPIRKUMU SOMA'], cat: 'deposit' },
+];
+
+function categorizeProduct(name) {
+  const up = ' ' + String(name || '').toUpperCase().replace(/\s+/g, ' ').trim() + ' ';
+  for (const rule of PRODUCT_RULES) {
+    for (const pat of rule.m) {
+      if (up.includes(pat)) return rule.cat;
+    }
+  }
+  return 'p_other';
+}
+
+/* ── Эвристический парсер текста чека ──
+   Возвращает { merchant, date, total, items: [{name, price, cat}] }.
+   Терпимо относится к формату: строки «товар … цена [A|B]»,
+   количественные строки «0,455 kg X 8,49 EUR/kg», скидки, депозит. */
+function parseReceiptText(text) {
+  const lines = String(text || '').split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.length) throw new Error('Пустой текст чека');
+
+  const upAll = text.toUpperCase();
+  let merchant = 'Магазин';
+  if (upAll.includes('RIMI')) merchant = 'Rimi';
+  else if (upAll.includes('MAXIMA')) merchant = 'Maxima';
+  else if (upAll.includes('LIDL')) merchant = 'Lidl';
+  else if (upAll.includes('ELVI')) merchant = 'Elvi';
+  else if (upAll.includes('TOP!')) merchant = 'top!';
+
+  // дата: dd.mm.yyyy или yyyy-mm-dd
+  let date = null;
+  const dm = text.match(/(\d{2})\.(\d{2})\.(\d{4})/) || text.match(/(\d{4})-(\d{2})-(\d{2})/);
+  if (dm) {
+    date = dm[0].includes('-')
+      ? new Date(+dm[1], +dm[2] - 1, +dm[3])
+      : new Date(+dm[3], +dm[2] - 1, +dm[1]);
+  }
+
+  const SKIP = /KOPĀ|KOPA\b|SUMMA|PVN|NODOKL|BANKAS|KARTE|SKAIDRA|ATLIKUM|ČEKS|CEKS|KASIER|KASE\b|REĢ\.?\s?NR|REG\.?\s?NR|SIA |A\/S|TĀLR|TALR|WWW\.|PALDIES|APMEKLĒ|ATVĒRTS|KVĪTS|KVITS|TERMINĀL|TERMINAL|LAIKS|DATUMS|Nr\.|KLIENTS|BONUSS|UZKRĀT|NOPELNĪT|MANS RIMI|PIRCĒJ/i;
+  const QTY_LINE = /^(\d+[.,]?\d*)\s*(gab|kg|l|ml|g)\.?\s*[xX×]\s*(\d+[.,]\d{2,3})/i;
+  const PRICE_END = /^(.*?)\s+(-?\d+[.,]\d{2})\s*([AB])?\s*$/;
+  const DISCOUNT = /ATLAIDE|ATL\.|NOCENOJ|DISCOUNT|AKCIJA/i;
+
+  const items = [];
+  let total = null;
+  let pendingName = null;
+
+  for (const line of lines) {
+    // итоговая сумма
+    const totalMatch = line.match(/(?:KOPĀ|KOPA|SAMAKSAI|APMAKSAI|TOTAL)\D*(\d+[.,]\d{2})/i);
+    if (totalMatch) { total = parseFloat(totalMatch[1].replace(',', '.')); continue; }
+
+    if (SKIP.test(line)) { pendingName = null; continue; }
+
+    // количественная строка: «0,455 kg X 8,49 …  3,86 A»
+    const qty = line.match(QTY_LINE);
+    if (qty) {
+      const priceMatch = line.match(/(-?\d+[.,]\d{2})\s*[AB]?\s*$/);
+      if (priceMatch && pendingName) {
+        items.push({ name: pendingName, price: parseFloat(priceMatch[1].replace(',', '.')), cat: categorizeProduct(pendingName) });
+        pendingName = null;
+      }
+      continue;
+    }
+
+    const pm = line.match(PRICE_END);
+    if (pm && pm[1].length >= 2 && /\D{2,}/.test(pm[1])) {
+      const name = pm[1].replace(/\s+/g, ' ').trim();
+      const price = parseFloat(pm[2].replace(',', '.'));
+      if (DISCOUNT.test(name) && price < 0 && items.length) {
+        // скидка уменьшает предыдущий товар
+        items[items.length - 1].price = Math.round((items[items.length - 1].price + price) * 100) / 100;
+      } else if (!DISCOUNT.test(name)) {
+        items.push({ name, price, cat: categorizeProduct(name) });
+      }
+      pendingName = null;
+    } else if (/\D{3,}/.test(line) && !/\d{5,}/.test(line)) {
+      // строка без цены — возможно имя товара, цена на следующей строке
+      pendingName = line.replace(/\s+/g, ' ').trim();
+    }
+  }
+
+  if (!items.length) throw new Error('Не нашла товаров в тексте чека — проверь, что скопирован список покупок с ценами');
+
+  const itemsSum = Math.round(items.reduce((s, i) => s + i.price, 0) * 100) / 100;
+  return { merchant, date: date || new Date(), total: total ?? itemsSum, itemsSum, items };
+}
+
+</script>
+<script>
+/* Парсер банковских выписок (CSV).
+   Поддержка: Swedbank LV, SEB LV, Citadele, Luminor, Revolut + любой CSV,
+   где можно автоматически найти колонки даты, суммы и описания. */
+
+/* ── Декодирование файла ── */
+function decodeBuffer(buf) {
+  const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buf);
+  // если много символов замены (U+FFFD) — это скорее всего windows-1257 (балтийская)
+  const badCount = (utf8.match(/\uFFFD/g) || []).length;
+  if (badCount > 2) {
+    try { return new TextDecoder('windows-1257').decode(buf); } catch (e) { /* оставляем utf-8 */ }
+  }
+  return utf8.replace(/^﻿/, '');
+}
+
+/* ── CSV с кавычками ── */
+function detectDelimiter(text) {
+  const sample = text.slice(0, 4000);
+  const counts = [';', ',', '\t'].map(d => {
+    let n = 0, inQ = false;
+    for (const ch of sample) {
+      if (ch === '"') inQ = !inQ;
+      else if (!inQ && ch === d) n++;
+    }
+    return { d, n };
+  });
+  counts.sort((a, b) => b.n - a.n);
+  return counts[0].n > 0 ? counts[0].d : ';';
+}
+
+function parseCSV(text, delim) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { field += '"'; i++; }
+        else inQ = false;
+      } else field += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === delim) { row.push(field); field = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && text[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      if (row.some(f => f.trim() !== '')) rows.push(row);
+      row = [];
+    } else field += ch;
+  }
+  if (field !== '' || row.length) { row.push(field); if (row.some(f => f.trim() !== '')) rows.push(row); }
+  return rows;
+}
+
+/* ── Даты и суммы ── */
+function parseDateStr(s) {
+  s = String(s || '').trim();
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})/)))                 return new Date(+m[1], +m[2] - 1, +m[3]);
+  if ((m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{4})/)))       return new Date(+m[3], +m[2] - 1, +m[1]);
+  if ((m = s.match(/^(\d{1,2})[./](\d{1,2})[./](\d{2})$/)))      return new Date(2000 + +m[3], +m[2] - 1, +m[1]);
+  return null;
+}
+
+function parseAmountStr(s) {
+  s = String(s || '').replace(/[\s ]/g, '').replace(/EUR|USD|GBP|€|\$/gi, '');
+  if (!s || !/\d/.test(s)) return null;
+  const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+  if (lastComma > -1 && lastDot > -1) {
+    // оба разделителя: последний — десятичный
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+    else s = s.replace(/,/g, '');
+  } else if (lastComma > -1) {
+    // одна запятая: десятичная, если после неё 1–2 цифры
+    const after = s.length - lastComma - 1;
+    s = (after <= 2) ? s.replace(',', '.') : s.replace(/,/g, '');
+  }
+  const v = parseFloat(s);
+  return isNaN(v) ? null : v;
+}
+
+/* ── Поиск колонок ── */
+const COL_PATTERNS = {
+  date:    /datums|date|dato|data\b|дата|kuupäev|completed date|started date|transaction date|booking/i,
+  amount:  /summa\b|amount|betrag|сумма|suma\b/i,
+  payee:   /saņēmējs|sanemejs|maksātājs|maksatajs|beneficiary|payee|получатель|name/i,
+  info:    /informācija|informacija|description|apraksts|details|назначение|paskaidrojums|maksājuma mērķis|merki|purpose/i,
+  dc:      /debets|kredīts|kredits|d\/k|dc\b|debit\/credit/i,
+  currency:/valūta|valuta|currency|валюта/i,
+  type:    /ieraksta tips|type|veids/i,
+  state:   /state|status/i,
+};
+
+function findHeaderRow(rows) {
+  for (let i = 0; i < Math.min(rows.length, 10); i++) {
+    const joined = rows[i].join(' ').toLowerCase();
+    if (COL_PATTERNS.date.test(joined) && (COL_PATTERNS.amount.test(joined) || /amount/i.test(joined))) return i;
+  }
+  return -1;
+}
+
+function findCol(header, re) {
+  for (let i = 0; i < header.length; i++) if (re.test(header[i])) return i;
+  return -1;
+}
+
+/* Определяем колонки по содержимому, если заголовка нет */
+function guessColumns(rows) {
+  const probe = rows.slice(0, 20);
+  const nCols = Math.max(...probe.map(r => r.length));
+  let dateCol = -1, amountCol = -1;
+  for (let c = 0; c < nCols; c++) {
+    const vals = probe.map(r => r[c]).filter(v => v && v.trim());
+    if (!vals.length) continue;
+    const dateHits = vals.filter(v => parseDateStr(v)).length;
+    if (dateCol === -1 && dateHits > vals.length * 0.6) { dateCol = c; continue; }
+    const numHits = vals.filter(v => parseAmountStr(v) !== null && !parseDateStr(v)).length;
+    if (amountCol === -1 && c !== dateCol && numHits > vals.length * 0.6) amountCol = c;
+  }
+  // описание — самая «текстовая» колонка
+  let descCol = -1, bestLen = 0;
+  for (let c = 0; c < nCols; c++) {
+    if (c === dateCol || c === amountCol) continue;
+    const vals = probe.map(r => r[c] || '');
+    const avgLen = vals.reduce((s, v) => s + v.length, 0) / (vals.length || 1);
+    const numeric = vals.filter(v => v && parseAmountStr(v) !== null).length;
+    if (avgLen > bestLen && numeric < vals.length * 0.5) { bestLen = avgLen; descCol = c; }
+  }
+  return { dateCol, amountCol, descCol };
+}
+
+/* ── Главная функция: текст файла → массив транзакций ── */
+function parseStatement(buf, fileName) {
+  const text = decodeBuffer(buf);
+  const delim = detectDelimiter(text);
+  const rows = parseCSV(text, delim);
+  if (rows.length < 2) throw new Error('Файл пустой или не похож на CSV: ' + fileName);
+
+  const headerIdx = findHeaderRow(rows);
+  let cols, dataRows, bankGuess = 'generic';
+
+  if (headerIdx >= 0) {
+    const header = rows[headerIdx].map(h => h.trim());
+    const joined = header.join(';').toLowerCase();
+    if (/ieraksta tips/.test(joined)) bankGuess = 'swedbank';
+    else if (/completed date/.test(joined) && /product/.test(joined)) bankGuess = 'revolut';
+
+    cols = {
+      date:    findCol(header, COL_PATTERNS.date),
+      amount:  findCol(header, COL_PATTERNS.amount),
+      payee:   findCol(header, COL_PATTERNS.payee),
+      info:    findCol(header, COL_PATTERNS.info),
+      dc:      findCol(header, COL_PATTERNS.dc),
+      currency:findCol(header, COL_PATTERNS.currency),
+      type:    findCol(header, COL_PATTERNS.type),
+      state:   findCol(header, COL_PATTERNS.state),
+    };
+    // у Revolut две колонки дат — берём Completed Date
+    if (bankGuess === 'revolut') {
+      const completed = findCol(header, /completed date/i);
+      if (completed > -1) cols.date = completed;
+    }
+    dataRows = rows.slice(headerIdx + 1);
+  } else {
+    const g = guessColumns(rows);
+    if (g.dateCol === -1 || g.amountCol === -1)
+      throw new Error('Не нашла колонки даты и суммы в файле: ' + fileName);
+    cols = { date: g.dateCol, amount: g.amountCol, payee: -1, info: g.descCol, dc: -1, currency: -1, type: -1, state: -1 };
+    dataRows = rows;
+  }
+
+  const txs = [];
+  for (const r of dataRows) {
+    const date = parseDateStr(r[cols.date]);
+    if (!date) continue;
+
+    let amount = parseAmountStr(r[cols.amount]);
+    if (amount === null) continue;
+
+    // служебные строки Swedbank: тип 10/82/86 — начальный остаток/оборот/конечный остаток
+    if (cols.type > -1 && bankGuess === 'swedbank') {
+      const t = String(r[cols.type] || '').trim();
+      if (t && t !== '20') continue;
+    }
+    // Revolut: пропускаем незавершённые операции
+    if (cols.state > -1) {
+      const st = String(r[cols.state] || '').trim().toUpperCase();
+      if (st && st !== 'COMPLETED') continue;
+    }
+
+    // знак: колонка Debets/Kredīts (D = расход)
+    if (cols.dc > -1) {
+      const dc = String(r[cols.dc] || '').trim().toUpperCase();
+      amount = Math.abs(amount) * (dc === 'D' ? -1 : 1);
+    }
+
+    const payee = cols.payee > -1 ? (r[cols.payee] || '').trim() : '';
+    const info  = cols.info  > -1 ? (r[cols.info]  || '').trim() : '';
+    let desc = [payee, info].filter(Boolean).join(' — ');
+    if (!desc) desc = r.filter((f, i) => i !== cols.date && i !== cols.amount && f && f.trim()).join(' ').slice(0, 200);
+
+    const descUp = desc.toUpperCase();
+    if (/APGROZĪJUMS|APGROZIJUMS|ATLIKUMS|SĀKUMA|SAKUMA|BEIGU SALDO|OPENING BALANCE|CLOSING BALANCE/.test(descUp)) continue;
+
+    const currency = cols.currency > -1 ? (r[cols.currency] || 'EUR').trim() : 'EUR';
+
+    txs.push({
+      date,
+      month: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'),
+      desc,
+      amount,
+      currency: currency || 'EUR',
+      source: fileName,
+    });
+  }
+
+  if (!txs.length) throw new Error('Не нашла ни одной транзакции в файле: ' + fileName);
+  return txs;
+}
+
+</script>
+<script>
+/* Демо-данные: ~3 месяца правдоподобных трат в Риге,
+   чтобы посмотреть аппку без загрузки настоящей выписки. */
+
+function generateDemoData() {
+  // детерминированный генератор, чтобы демо всегда выглядело одинаково
+  let seed = 42;
+  const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+  const pick = arr => arr[Math.floor(rnd() * arr.length)];
+  const between = (a, b) => a + rnd() * (b - a);
+
+  const today = new Date();
+  const txs = [];
+  const add = (daysAgo, desc, amount) => {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysAgo);
+    txs.push({
+      date: d,
+      month: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'),
+      desc, amount: Math.round(amount * 100) / 100, currency: 'EUR', source: 'demo',
+    });
+  };
+
+  const groceries = [
+    ['PIRKUMS 5449xx...1234 RIMI LIDLS 1085 RIGA', -8, -45],
+    ['PIRKUMS 5449xx...1234 MAXIMA XX RIGA', -6, -38],
+    ['PIRKUMS 5449xx...1234 LIDL RIGA BRIVIBAS', -10, -32],
+    ['PIRKUMS 5449xx...1234 ELVI VEIKALS RIGA', -4, -15],
+  ];
+  const cafes = [
+    ['PIRKUMS 5449xx...1234 CAFFEINE LV RIGA', -3.5, -7.5],
+    ['PIRKUMS 5449xx...1234 LIDO ORIGO RIGA', -9, -18],
+    ['PIRKUMS 5449xx...1234 ROCKET BEAN ROASTERY RIGA', -4, -9],
+    ['PIRKUMS 5449xx...1234 NARVESEN 123 RIGA', -2, -6],
+  ];
+
+  for (let day = 0; day < 92; day++) {
+    // продукты: примерно через день
+    if (rnd() < 0.55) { const g = pick(groceries); add(day, g[0], between(g[2], g[1])); }
+    // кофе/кафе
+    if (rnd() < 0.4) { const c = pick(cafes); add(day, c[0], between(c[2], c[1])); }
+    // Bolt / транспорт
+    if (rnd() < 0.25) add(day, 'BOLT.EU/O/2407 TALLINN', -between(4, 12));
+    if (rnd() < 0.2) add(day, 'PIRKUMS 5449xx...1234 MOBILLY RIGA', -between(1, 4));
+    // Wolt по выходным
+    if (day % 7 < 2 && rnd() < 0.5) add(day, 'WOLT RIGA', -between(14, 28));
+    // аптека, красота, разное
+    if (rnd() < 0.08) add(day, 'PIRKUMS 5449xx...1234 MENESS APTIEKA RIGA', -between(6, 25));
+    if (rnd() < 0.06) add(day, 'PIRKUMS 5449xx...1234 DROGAS AKROPOLE RIGA', -between(8, 30));
+    if (rnd() < 0.05) add(day, 'PIRKUMS 5449xx...1234 SINSAY AKROPOLE RIGA', -between(12, 45));
+    if (rnd() < 0.04) add(day, 'PIRKUMS 5449xx...1234 DEPO KRASTA RIGA', -between(10, 60));
+    if (rnd() < 0.04) add(day, 'PIRKUMS 5449xx...1234 DINO ZOO PASAULE RIGA', -between(8, 35));
+    if (rnd() < 0.03) add(day, 'PIRKUMS 5449xx...1234 APOLLO KINO AKROPOLE', -between(8, 16));
+  }
+
+  // ежемесячные платежи
+  for (let m = 0; m < 3; m++) {
+    const base = m * 30 + 2;
+    add(base, 'LMT ABONESANAS MAKSA', -19.99);
+    add(base + 1, 'SPOTIFY P2ABC123 STOCKHOLM', -6.99);
+    add(base + 2, 'NETFLIX.COM AMSTERDAM', -12.99);
+    add(base + 3, 'ANTHROPIC CLAUDE.AI SAN FRANCISCO', -21.78);
+    add(base + 5, 'RIGAS NAMU PARVALDNIEKS REKINS', -between(85, 140));
+    add(base + 6, 'ELEKTRUM LATVENERGO REKINS', -between(30, 55));
+    add(base + 8, 'MYFITNESS ABONEMENTS RIGA', -39.99);
+    add(base + 10, 'KOMISIJAS MAKSA PAR KONTA APKALPOSANU', -2.5);
+    add(base + 12, 'SKAIDRAS NAUDAS IZNEMSANA ATM SWEDBANK', -50);
+    // зарплата
+    add(base + 1, 'DARBA ALGA SIA UZNEMUMS', between(1450, 1650));
+  }
+  // разовые
+  add(20, 'AIRBALTIC RIGA TICKETS', -89.99);
+  add(45, 'BOOKING.COM HOTEL VILNIUS', -124);
+  add(70, 'PIRKUMS 5449xx...1234 RD ELECTRONICS RIGA', -159.99);
+
+  return txs;
+}
+
+</script>
+<script>
+/* Отрисовка графиков на чистом SVG.
+   Цвета берутся из CSS-переменных --series-1..8, поэтому графики
+   автоматически перекрашиваются при смене темы (app.js перерисовывает). */
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+function svgEl(tag, attrs = {}, children = []) {
+  const el = document.createElementNS(SVG_NS, tag);
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+  for (const c of children) el.appendChild(c);
+  return el;
+}
+
+function cssVar(name) {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+function fmtEur(v, digits = 0) {
+  return v.toLocaleString('ru-RU', { minimumFractionDigits: digits, maximumFractionDigits: digits }) + ' €';
+}
+
+function monthLabel(ym) {
+  const NAMES = ['янв', 'фев', 'мар', 'апр', 'май', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const [y, m] = ym.split('-');
+  return NAMES[+m - 1] + ' ’' + y.slice(2);
+}
+
+/* ── Тултип ── */
+const tooltip = {
+  el: null,
+  show(html, x, y) {
+    if (!this.el) this.el = document.getElementById('viz-tooltip');
+    this.el.innerHTML = html;
+    this.el.hidden = false;
+    const r = this.el.getBoundingClientRect();
+    let left = x + 14, top = y - r.height - 10;
+    if (left + r.width > window.innerWidth - 8) left = x - r.width - 14;
+    if (top < 8) top = y + 14;
+    this.el.style.left = left + 'px';
+    this.el.style.top = top + 'px';
+  },
+  hide() { if (this.el) this.el.hidden = true; },
+};
+
+/* ── Столбчатый график с накоплением: расходы по месяцам ──
+   series: [{catId, name, color}] — фиксированный порядок;
+   data: [{month, values: {catId: amount}}] */
+function renderMonthlyChart(container, months, series) {
+  container.innerHTML = '';
+  if (!months.length) { container.innerHTML = '<p class="card-note">Нет расходов за выбранный период</p>'; return; }
+
+  const W = 960, plotH = 260, axisBand = 26, H = plotH + axisBand;
+  const padL = 56, padR = 12, padT = 24;
+  const innerW = W - padL - padR, innerH = plotH - padT;
+
+  const totals = months.map(m => Object.values(m.values).reduce((s, v) => s + v, 0));
+  const maxV = Math.max(...totals, 1);
+  const niceMax = niceCeil(maxV);
+
+  const svg = svgEl('svg', { viewBox: `0 0 ${W} ${H}`, role: 'img', 'aria-label': 'Расходы по месяцам, с разбивкой по категориям' });
+
+  const muted = cssVar('--text-muted'), grid = cssVar('--grid'), baseline = cssVar('--baseline');
+  const inkPrimary = cssVar('--text-primary');
+
+  // сетка + подписи оси Y (тонкие сплошные линии)
+  const ySteps = 4;
+  for (let i = 0; i <= ySteps; i++) {
+    const v = niceMax * i / ySteps;
+    const y = padT + innerH - (v / niceMax) * innerH;
+    svg.appendChild(svgEl('line', { x1: padL, x2: W - padR, y1: y, y2: y, stroke: i === 0 ? baseline : grid, 'stroke-width': 1 }));
+    svg.appendChild(Object.assign(svgEl('text', { x: padL - 8, y: y + 4, 'text-anchor': 'end', 'font-size': 11, fill: muted }), { textContent: fmtEur(v) }));
+  }
+
+  const n = months.length;
+  const slot = innerW / n;
+  const barW = Math.min(64, slot * 0.55);
+  const GAP = 2; // зазор цвета поверхности между сегментами
+
+  months.forEach((m, i) => {
+    const x = padL + slot * i + (slot - barW) / 2;
+    let acc = 0;
+    const total = totals[i];
+
+    series.forEach(s => {
+      const v = m.values[s.catId] || 0;
+      if (v <= 0) return;
+      const h = (v / niceMax) * innerH;
+      const y = padT + innerH - ((acc + v) / niceMax) * innerH;
+      const isTop = acc + v >= total - 0.005;
+      const rect = svgEl('rect', {
+        x, y: y + (isTop ? 0 : GAP / 2), width: barW,
+        height: Math.max(h - (isTop ? GAP / 2 : GAP), 1),
+        fill: s.color, rx: isTop ? 4 : 0,
+      });
+      rect.addEventListener('mousemove', e => tooltip.show(
+        `<div class="tt-title">${s.name}</div>
+         <div class="tt-row"><span>${monthLabel(m.month)}</span><span class="v">${fmtEur(v, 2)}</span></div>
+         <div class="tt-row"><span>Доля месяца</span><span class="v">${Math.round(v / total * 100)}%</span></div>`,
+        e.clientX, e.clientY));
+      rect.addEventListener('mouseleave', () => tooltip.hide());
+      svg.appendChild(rect);
+      acc += v;
+    });
+
+    // итог месяца — выборочная прямая подпись над столбцом
+    const topY = padT + innerH - (total / niceMax) * innerH;
+    svg.appendChild(Object.assign(
+      svgEl('text', { x: x + barW / 2, y: topY - 6, 'text-anchor': 'middle', 'font-size': 12, 'font-weight': 600, fill: inkPrimary }),
+      { textContent: fmtEur(total) }));
+
+    // подпись месяца
+    svg.appendChild(Object.assign(
+      svgEl('text', { x: x + barW / 2, y: plotH + 16, 'text-anchor': 'middle', 'font-size': 11.5, fill: muted }),
+      { textContent: monthLabel(m.month) }));
+  });
+
+  container.appendChild(svg);
+}
+
+function niceCeil(v) {
+  const pow = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / pow;
+  const nice = n <= 1 ? 1 : n <= 2 ? 2 : n <= 2.5 ? 2.5 : n <= 5 ? 5 : 10;
+  return nice * pow;
+}
+
+/* ── Легенда ── */
+function renderLegend(container, series) {
+  container.innerHTML = '';
+  series.forEach(s => {
+    const item = document.createElement('span');
+    item.className = 'legend-item';
+    const dot = document.createElement('span');
+    dot.className = 'legend-dot';
+    dot.style.background = s.color;
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(s.name));
+    container.appendChild(item);
+  });
+}
+
+/* ── Горизонтальные полосы по категориям (HTML, значение у конца полосы) ── */
+function renderCategoryBars(container, items) {
+  container.innerHTML = '';
+  if (!items.length) { container.innerHTML = '<p class="card-note">Нет расходов</p>'; return; }
+  const max = Math.max(...items.map(i => i.value), 1);
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.className = 'catbar-row';
+
+    const name = document.createElement('span');
+    name.className = 'catbar-name';
+    name.textContent = `${it.icon} ${it.name}`;
+    name.title = it.name;
+
+    const track = document.createElement('div');
+    track.className = 'catbar-track';
+    const fill = document.createElement('div');
+    fill.className = 'catbar-fill';
+    fill.style.width = (it.value / max * 100) + '%';
+    fill.style.background = it.color;
+    track.appendChild(fill);
+    track.addEventListener('mousemove', e => tooltip.show(
+      `<div class="tt-title">${it.icon} ${it.name}</div>
+       <div class="tt-row"><span>Сумма</span><span class="v">${fmtEur(it.value, 2)}</span></div>
+       <div class="tt-row"><span>Транзакций</span><span class="v">${it.count}</span></div>
+       <div class="tt-row"><span>Доля расходов</span><span class="v">${it.share}%</span></div>`,
+      e.clientX, e.clientY));
+    track.addEventListener('mouseleave', () => tooltip.hide());
+
+    const val = document.createElement('span');
+    val.className = 'catbar-val';
+    val.textContent = fmtEur(it.value);
+
+    row.append(name, track, val);
+    container.appendChild(row);
+  });
+}
+
+</script>
+<script>
+/* Чеки и продуктовая корзина: хранение, привязка к транзакциям,
+   разбор текста локально и фото/PDF через Claude API (ключ пользователя). */
+
+const LS_RECEIPTS = 'baltic-audit-receipts-v1';
+const LS_PRODUCT_RULES = 'baltic-audit-product-rules-v1';
+const LS_API_KEY = 'baltic-audit-api-key';
+const LS_AI_MODEL = 'baltic-audit-ai-model';
+
+const receiptsState = {
+  receipts: [],        // {id, merchant, date(Date), total, items:[{name, price, cat}], source}
+  productRules: {},    // нормализованное имя товара → catId
+};
+
+/* ── Хранение ── */
+function persistReceipts() {
+  try {
+    localStorage.setItem(LS_RECEIPTS, JSON.stringify(receiptsState.receipts.map(r => ({
+      id: r.id, m: r.merchant, d: r.date.getTime(), t: r.total, s: r.source,
+      i: r.items.map(it => ({ n: it.name, p: it.price, c: it.cat })),
+    }))));
+  } catch (e) { console.warn('Не удалось сохранить чеки', e); }
+  localStorage.setItem(LS_PRODUCT_RULES, JSON.stringify(receiptsState.productRules));
+}
+
+function restoreReceipts() {
+  try {
+    receiptsState.productRules = JSON.parse(localStorage.getItem(LS_PRODUCT_RULES) || '{}');
+    receiptsState.receipts = (JSON.parse(localStorage.getItem(LS_RECEIPTS) || '[]')).map(r => ({
+      id: r.id, merchant: r.m, date: new Date(r.d), total: r.t, source: r.s,
+      items: r.i.map(it => ({ name: it.n, price: it.p, cat: it.c })),
+    }));
+    applyProductRules();
+  } catch (e) { receiptsState.receipts = []; }
+}
+
+const productKey = n => String(n || '').toUpperCase().replace(/\s+/g, ' ').trim();
+
+function applyProductRules() {
+  for (const r of receiptsState.receipts) {
+    for (const it of r.items) {
+      const override = receiptsState.productRules[productKey(it.name)];
+      if (override) it.cat = override;
+    }
+  }
+}
+
+function addReceipt(parsed, source) {
+  const receipt = {
+    id: 'r' + Date.now() + Math.random().toString(36).slice(2, 7),
+    merchant: parsed.merchant || 'Магазин',
+    date: parsed.date instanceof Date ? parsed.date : (parseDateStr(parsed.date) || new Date()),
+    total: parsed.total,
+    items: parsed.items.map(it => ({
+      name: it.name,
+      price: it.price,
+      cat: receiptsState.productRules[productKey(it.name)] || it.cat || categorizeProduct(it.name),
+    })),
+    source,
+  };
+  receiptsState.receipts.push(receipt);
+  receiptsState.receipts.sort((a, b) => b.date - a.date);
+  persistReceipts();
+  return receipt;
+}
+
+/* Чек «привязан», если в выписке есть трата с той же суммой в ±3 дня */
+function isReceiptLinked(receipt) {
+  return state.transactions.some(t =>
+    t.amount < 0 &&
+    Math.abs(Math.abs(t.amount) - receipt.total) < 0.01 &&
+    Math.abs(t.date - receipt.date) < 3 * 86400000
+  );
+}
+
+/* ── Claude API: фото / PDF / сложный текст ── */
+const RECEIPT_SCHEMA = {
+  type: 'object',
+  properties: {
+    merchant: { type: 'string', description: 'Название магазина, например Rimi, Maxima, Lidl' },
+    date: { type: ['string', 'null'], description: 'Дата чека в формате YYYY-MM-DD, null если не видна' },
+    total: { type: 'number', description: 'Итоговая сумма чека в EUR' },
+    items: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Название товара как в чеке' },
+          price: { type: 'number', description: 'Итоговая цена позиции в EUR со всеми скидками' },
+          category: { type: 'string', enum: PRODUCT_CATEGORIES.map(c => c.id) },
+        },
+        required: ['name', 'price', 'category'],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ['merchant', 'date', 'total', 'items'],
+  additionalProperties: false,
+};
+
+function receiptPrompt() {
+  const cats = PRODUCT_CATEGORIES.map(c => `${c.id} = ${c.name}`).join('; ');
+  return `Это кассовый чек из магазина (скорее всего Латвия: Rimi, Maxima, Lidl и т.п., названия товаров на латышском). Извлеки все товарные позиции с итоговыми ценами (учти скидки: строка "Atlaide" со знаком минус относится к товару выше). Депозит за тару (Depozīts) и пакеты — отдельные позиции категории deposit. Категории: ${cats}. Верни JSON по схеме.`;
+}
+
+async function parseReceiptWithClaude({ base64, mediaType, text }) {
+  const apiKey = localStorage.getItem(LS_API_KEY);
+  if (!apiKey) throw new Error('Сначала добавь API-ключ Anthropic в настройках чеков');
+  const model = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
+
+  const content = [];
+  if (base64) {
+    content.push(mediaType === 'application/pdf'
+      ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } }
+      : { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } });
+  }
+  content.push({ type: 'text', text: receiptPrompt() + (text ? '\n\nТекст чека:\n' + text : '') });
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 8192,
+      output_config: { format: { type: 'json_schema', schema: RECEIPT_SCHEMA } },
+      messages: [{ role: 'user', content }],
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.json().catch(() => ({}));
+    throw new Error('Claude API: ' + (err.error?.message || resp.status));
+  }
+  const data = await resp.json();
+  if (data.stop_reason === 'refusal') throw new Error('Модель отказалась обрабатывать этот файл');
+  const textBlock = data.content.find(b => b.type === 'text');
+  if (!textBlock) throw new Error('Пустой ответ от Claude API');
+  const parsed = JSON.parse(textBlock.text);
+  return {
+    merchant: parsed.merchant,
+    date: parsed.date ? parseDateStr(parsed.date) : new Date(),
+    total: parsed.total,
+    items: parsed.items.map(it => ({ name: it.name, price: it.price, cat: it.category })),
+  };
+}
+
+/* ── UI ── */
+function initReceiptsUI() {
+  restoreReceipts();
+
+  const savedKey = localStorage.getItem(LS_API_KEY);
+  if (savedKey) $('api-key-input').value = savedKey;
+  $('ai-model-select').value = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
+
+  $('api-key-input').addEventListener('change', e => {
+    const v = e.target.value.trim();
+    if (v) localStorage.setItem(LS_API_KEY, v); else localStorage.removeItem(LS_API_KEY);
+  });
+  $('ai-model-select').addEventListener('change', e => localStorage.setItem(LS_AI_MODEL, e.target.value));
+
+  $('btn-paste-receipt').addEventListener('click', () => $('receipt-dialog').showModal());
+  $('btn-receipt-settings').addEventListener('click', () => {
+    const s = $('receipt-settings');
+    s.hidden = !s.hidden;
+  });
+
+  $('btn-parse-receipt-text').addEventListener('click', async () => {
+    const text = $('receipt-textarea').value.trim();
+    if (!text) return;
+    const status = $('receipt-dialog-status');
+    try {
+      status.textContent = 'Разбираю…';
+      let parsed;
+      try {
+        parsed = parseReceiptText(text);
+      } catch (heuristicError) {
+        // локально не разобрался — пробуем через Claude, если есть ключ
+        if (localStorage.getItem(LS_API_KEY)) {
+          status.textContent = 'Локально не разобрала, отправляю в Claude…';
+          parsed = await parseReceiptWithClaude({ text });
+        } else throw heuristicError;
+      }
+      addReceipt(parsed, 'text');
+      $('receipt-textarea').value = '';
+      status.textContent = '';
+      $('receipt-dialog').close();
+      renderReceipts();
+    } catch (e) {
+      status.textContent = '⚠️ ' + e.message;
+    }
+  });
+
+  $('receipt-photo-input').addEventListener('change', async e => {
+    const files = [...e.target.files];
+    e.target.value = '';
+    const status = $('receipts-status');
+    for (const file of files) {
+      try {
+        status.textContent = `Распознаю ${file.name} через Claude…`;
+        const buf = await file.arrayBuffer();
+        const base64 = arrayBufferToBase64(buf);
+        const mediaType = file.type || 'image/jpeg';
+        const parsed = await parseReceiptWithClaude({ base64, mediaType });
+        addReceipt(parsed, 'photo');
+        renderReceipts();
+        status.textContent = '';
+      } catch (err) {
+        status.textContent = '⚠️ ' + err.message;
+      }
+    }
+  });
+}
+
+function arrayBufferToBase64(buf) {
+  const bytes = new Uint8Array(buf);
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+/* Отрисовка корзины: учитывает фильтр месяца из основного состояния */
+function renderReceipts() {
+  const month = state.filters.month;
+  const receipts = receiptsState.receipts.filter(r => {
+    if (month === 'all') return true;
+    const rm = r.date.getFullYear() + '-' + String(r.date.getMonth() + 1).padStart(2, '0');
+    return rm === month;
+  });
+
+  const empty = !receiptsState.receipts.length;
+  $('basket-empty').hidden = !empty;
+  $('basket-content').hidden = empty;
+  if (empty) return;
+
+  // агрегация по категориям товаров
+  const byCat = {};
+  const byProduct = {};
+  let totalSum = 0;
+  for (const r of receipts) {
+    for (const it of r.items) {
+      if (it.price <= 0) continue;
+      byCat[it.cat] = byCat[it.cat] || { value: 0, count: 0 };
+      byCat[it.cat].value += it.price;
+      byCat[it.cat].count++;
+      const pk = productKey(it.name);
+      byProduct[pk] = byProduct[pk] || { name: it.name, cat: it.cat, sum: 0, count: 0 };
+      byProduct[pk].sum += it.price;
+      byProduct[pk].count++;
+      totalSum += it.price;
+    }
+  }
+
+  const items = Object.entries(byCat)
+    .sort((a, b) => b[1].value - a[1].value)
+    .map(([catId, v]) => ({
+      name: PRODUCT_CATEGORY_BY_ID[catId].name,
+      icon: PRODUCT_CATEGORY_BY_ID[catId].icon,
+      color: 'var(--accent)',
+      value: v.value,
+      count: v.count,
+      share: totalSum ? Math.round(v.value / totalSum * 100) : 0,
+    }));
+  renderCategoryBars($('basket-categories'), items);
+
+  // топ товаров
+  const top = Object.values(byProduct).sort((a, b) => b.sum - a.sum).slice(0, 12);
+  $('basket-top-products').innerHTML = top.map(p => `
+    <div class="merchant-row">
+      <span class="merchant-name">${escapeHtml(p.name)}
+        <span class="merchant-cat">${PRODUCT_CATEGORY_BY_ID[p.cat].icon} ${PRODUCT_CATEGORY_BY_ID[p.cat].name}</span>
+      </span>
+      <span class="merchant-count">×${p.count}</span>
+      <span class="merchant-sum">${fmtEur(p.sum, 2)}</span>
+    </div>`).join('') || '<p class="card-note">Нет товаров за выбранный период</p>';
+
+  // список чеков
+  const linked = receipts.filter(isReceiptLinked).length;
+  $('basket-note').textContent = receipts.length
+    ? `${receipts.length} чек(ов), ${linked} совпадают с транзакциями из выписки`
+    : 'Нет чеков за выбранный период';
+
+  const catOptions = PRODUCT_CATEGORIES.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+  $('receipts-list').innerHTML = receipts.map(r => `
+    <details class="receipt-row">
+      <summary>
+        <span>${fmtDate(r.date)} · <strong>${escapeHtml(r.merchant)}</strong> · ${r.items.length} поз.
+          ${isReceiptLinked(r) ? '<span class="linked-badge" title="Совпадает с транзакцией из выписки">✓ выписка</span>' : ''}
+        </span>
+        <span class="merchant-sum">${fmtEur(r.total, 2)}</span>
+      </summary>
+      <div class="receipt-items">
+        ${r.items.map((it, idx) => `
+          <div class="receipt-item">
+            <span class="receipt-item-name">${escapeHtml(it.name)}</span>
+            <span class="merchant-sum">${fmtEur(it.price, 2)}</span>
+            <select class="cat-select" data-rid="${r.id}" data-idx="${idx}">${catOptions}</select>
+          </div>`).join('')}
+        <div class="receipt-foot">
+          <button class="btn small danger" data-del-receipt="${r.id}">Удалить чек</button>
+        </div>
+      </div>
+    </details>`).join('');
+
+  // проставить выбранные категории и повесить обработчики
+  $('receipts-list').querySelectorAll('.cat-select').forEach(sel => {
+    const receipt = receiptsState.receipts.find(x => x.id === sel.dataset.rid);
+    const item = receipt.items[+sel.dataset.idx];
+    sel.value = item.cat;
+    sel.addEventListener('change', () => {
+      receiptsState.productRules[productKey(item.name)] = sel.value;
+      applyProductRules();
+      persistReceipts();
+      renderReceipts();
+    });
+  });
+  $('receipts-list').querySelectorAll('[data-del-receipt]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (!confirm('Удалить этот чек?')) return;
+      receiptsState.receipts = receiptsState.receipts.filter(x => x.id !== btn.dataset.delReceipt);
+      persistReceipts();
+      renderReceipts();
+    });
+  });
+}
+
+</script>
+<script>
+/* Состояние приложения и связка UI: загрузка файлов, фильтры,
+   KPI, графики, таблица, правила категорий, localStorage. */
+
+const LS_TX = 'baltic-audit-transactions-v1';
+const LS_RULES = 'baltic-audit-rules-v1';
+const LS_THEME = 'baltic-audit-theme';
+
+const state = {
+  transactions: [],          // {date, month, desc, amount, currency, cat, merchant, source}
+  userRules: {},             // ключ мерчанта → catId (переопределения пользователя)
+  filters: { month: 'all', cat: 'all', q: '' },
+  colorMap: {},              // catId → css-цвет; назначается один раз на датасет
+  seriesOrder: [],           // топ-категории в фиксированном порядке для графиков
+  rowsShown: 100,
+};
+
+/* ── Утилиты ── */
+const $ = id => document.getElementById(id);
+const merchantKey = m => String(m || '').toUpperCase().trim();
+
+function fmtDate(d) {
+  return String(d.getDate()).padStart(2, '0') + '.' + String(d.getMonth() + 1).padStart(2, '0') + '.' + d.getFullYear();
+}
+
+/* ── Тема ── */
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  localStorage.setItem(LS_THEME, theme);
+  if (state.transactions.length) render();
+}
+function initTheme() {
+  const saved = localStorage.getItem(LS_THEME);
+  const preferred = saved || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.dataset.theme = preferred;
+}
+
+/* ── Категоризация с учётом правил пользователя ── */
+function applyCategories(txs) {
+  for (const t of txs) {
+    const auto = categorize(t.desc, t.amount);
+    t.merchant = auto.merchant;
+    const override = state.userRules[merchantKey(t.merchant)];
+    t.cat = override || auto.cat;
+  }
+}
+
+/* ── Сохранение ── */
+function persist() {
+  try {
+    localStorage.setItem(LS_TX, JSON.stringify(state.transactions.map(t => ({
+      d: t.date.getTime(), s: t.desc, a: t.amount, c: t.currency, f: t.source,
+    }))));
+  } catch (e) { console.warn('localStorage переполнен, данные не сохранены', e); }
+  localStorage.setItem(LS_RULES, JSON.stringify(state.userRules));
+}
+
+function restore() {
+  try {
+    state.userRules = JSON.parse(localStorage.getItem(LS_RULES) || '{}');
+    const raw = JSON.parse(localStorage.getItem(LS_TX) || '[]');
+    state.transactions = raw.map(r => {
+      const date = new Date(r.d);
+      return {
+        date,
+        month: date.getFullYear() + '-' + String(date.getMonth() + 1).padStart(2, '0'),
+        desc: r.s, amount: r.a, currency: r.c, source: r.f,
+      };
+    });
+    applyCategories(state.transactions);
+  } catch (e) { state.transactions = []; state.userRules = {}; }
+}
+
+/* ── Приём файлов ── */
+async function handleFiles(fileList) {
+  const errors = [];
+  let added = 0;
+  const seen = new Set(state.transactions.map(t => t.date.getTime() + '|' + t.amount + '|' + t.desc));
+
+  for (const file of fileList) {
+    try {
+      const buf = await file.arrayBuffer();
+      const txs = parseStatement(buf, file.name);
+      for (const t of txs) {
+        const key = t.date.getTime() + '|' + t.amount + '|' + t.desc;
+        if (seen.has(key)) continue;   // дедупликация при повторной загрузке
+        seen.add(key);
+        state.transactions.push(t);
+        added++;
+      }
+    } catch (e) {
+      errors.push(e.message);
+    }
+  }
+
+  if (errors.length) alert('Проблемы при чтении:\n' + errors.join('\n'));
+  if (added) {
+    applyCategories(state.transactions);
+    state.transactions.sort((a, b) => b.date - a.date);
+    assignColors();
+    persist();
+    showDashboard();
+  }
+}
+
+/* ── Цвета: назначаются по всему датасету один раз,
+   фильтры их не меняют («цвет следует за сущностью») ── */
+function assignColors() {
+  const spend = {};
+  for (const t of state.transactions) {
+    if (t.amount < 0 && t.cat !== 'transfers' && t.cat !== 'income') {
+      spend[t.cat] = (spend[t.cat] || 0) + Math.abs(t.amount);
+    }
+  }
+  const ranked = Object.entries(spend).sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  const top = ranked.slice(0, 7);
+  state.seriesOrder = top;
+  state.colorMap = {};
+  top.forEach((catId, i) => { state.colorMap[catId] = `var(--series-${i + 1})`; });
+}
+
+function catColor(catId) {
+  return state.colorMap[catId] || 'var(--other)';
+}
+
+/* ── Фильтрация ── */
+function filteredTx() {
+  const { month, cat, q } = state.filters;
+  const qUp = q.trim().toUpperCase();
+  return state.transactions.filter(t => {
+    if (month !== 'all' && t.month !== month) return false;
+    if (cat !== 'all' && t.cat !== cat) return false;
+    if (qUp && !(t.desc.toUpperCase().includes(qUp) || t.merchant.toUpperCase().includes(qUp))) return false;
+    return true;
+  });
+}
+
+const isExpense = t => t.amount < 0 && t.cat !== 'transfers';
+
+/* ── Рендер всего дашборда ── */
+function render() {
+  const txs = filteredTx();
+  renderKPIs(txs);
+  renderMonthly(txs);
+  renderCats(txs);
+  renderMerchants(txs);
+  renderTable(txs);
+  renderReceipts();
+}
+
+function renderKPIs(txs) {
+  const expenses = txs.filter(isExpense);
+  const spent = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+  const income = txs.filter(t => t.amount > 0 && t.cat === 'income').reduce((s, t) => s + t.amount, 0);
+
+  let perDay = 0;
+  if (expenses.length) {
+    const times = expenses.map(t => t.date.getTime());
+    const days = Math.max(1, Math.round((Math.max(...times) - Math.min(...times)) / 86400000) + 1);
+    perDay = spent / days;
+  }
+
+  const byCat = {};
+  for (const t of expenses) byCat[t.cat] = (byCat[t.cat] || 0) + Math.abs(t.amount);
+  const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
+
+  const kpis = [
+    { label: 'Расходы', value: fmtEur(spent, 2), cls: '', sub: `${expenses.length} транзакций` },
+    { label: 'Доходы', value: income ? fmtEur(income, 2) : '—', cls: income ? 'good' : '', sub: income ? 'зарплата и поступления' : 'не найдено в выписке' },
+    { label: 'В среднем в день', value: fmtEur(perDay, 2), cls: '', sub: 'по дням с тратами в периоде' },
+    topCat
+      ? { label: 'Топ категория', value: CATEGORY_BY_ID[topCat[0]].icon + ' ' + CATEGORY_BY_ID[topCat[0]].name, cls: '', sub: fmtEur(topCat[1], 2) + ' · ' + Math.round(topCat[1] / spent * 100) + '% расходов', small: true }
+      : { label: 'Топ категория', value: '—', cls: '', sub: '' },
+  ];
+
+  $('kpi-row').innerHTML = kpis.map(k => `
+    <div class="kpi">
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value ${k.cls}" ${k.small ? 'style="font-size:19px"' : ''}>${k.value}</div>
+      <div class="kpi-sub">${k.sub}</div>
+    </div>`).join('');
+}
+
+function renderMonthly(txs) {
+  const expenses = txs.filter(isExpense);
+  const byMonth = {};
+  for (const t of expenses) {
+    byMonth[t.month] = byMonth[t.month] || {};
+    const cat = state.seriesOrder.includes(t.cat) ? t.cat : '__other';
+    byMonth[t.month][cat] = (byMonth[t.month][cat] || 0) + Math.abs(t.amount);
+  }
+  const months = Object.keys(byMonth).sort().map(m => ({ month: m, values: byMonth[m] }));
+
+  const series = state.seriesOrder.map(catId => ({
+    catId,
+    name: CATEGORY_BY_ID[catId].name,
+    color: catColor(catId),
+  }));
+  series.push({ catId: '__other', name: 'Остальное', color: 'var(--other)' });
+
+  const usedSeries = series.filter(s => months.some(m => (m.values[s.catId] || 0) > 0));
+  renderMonthlyChart($('chart-monthly'), months, usedSeries);
+  renderLegend($('legend-monthly'), usedSeries);
+  $('monthly-note').textContent = months.length ? 'наведи на сегмент, чтобы увидеть детали' : '';
+}
+
+function renderCats(txs) {
+  const expenses = txs.filter(isExpense);
+  const total = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
+  const byCat = {};
+  for (const t of expenses) {
+    byCat[t.cat] = byCat[t.cat] || { value: 0, count: 0 };
+    byCat[t.cat].value += Math.abs(t.amount);
+    byCat[t.cat].count++;
+  }
+  const items = Object.entries(byCat)
+    .sort((a, b) => b[1].value - a[1].value)
+    .map(([catId, v]) => ({
+      name: CATEGORY_BY_ID[catId].name,
+      icon: CATEGORY_BY_ID[catId].icon,
+      color: catColor(catId),
+      value: v.value,
+      count: v.count,
+      share: total ? Math.round(v.value / total * 100) : 0,
+    }));
+  renderCategoryBars($('chart-categories'), items);
+}
+
+function renderMerchants(txs) {
+  const expenses = txs.filter(isExpense);
+  const byM = {};
+  for (const t of expenses) {
+    const k = merchantKey(t.merchant);
+    byM[k] = byM[k] || { name: t.merchant, cat: t.cat, sum: 0, count: 0 };
+    byM[k].sum += Math.abs(t.amount);
+    byM[k].count++;
+  }
+  const top = Object.values(byM).sort((a, b) => b.sum - a.sum).slice(0, 10);
+  $('top-merchants').innerHTML = top.length ? top.map(m => `
+    <div class="merchant-row">
+      <span class="merchant-name">${escapeHtml(m.name)}
+        <span class="merchant-cat">${CATEGORY_BY_ID[m.cat].icon} ${CATEGORY_BY_ID[m.cat].name}</span>
+      </span>
+      <span class="merchant-count">×${m.count}</span>
+      <span class="merchant-sum">${fmtEur(m.sum, 2)}</span>
+    </div>`).join('') : '<p class="card-note">Нет расходов</p>';
+}
+
+function renderTable(txs) {
+  const tbody = $('tx-tbody');
+  const shown = txs.slice(0, state.rowsShown);
+  const catOptions = CATEGORIES.map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+
+  tbody.innerHTML = shown.map((t, i) => `
+    <tr>
+      <td class="num">${fmtDate(t.date)}</td>
+      <td><span class="tx-merchant">${escapeHtml(t.merchant)}</span><span class="tx-desc" title="${escapeHtml(t.desc)}">${escapeHtml(t.desc)}</span></td>
+      <td class="num ${t.amount < 0 ? 'amount-neg' : 'amount-pos'}">${t.amount < 0 ? '−' : '+'}${fmtEur(Math.abs(t.amount), 2)}</td>
+      <td><select class="cat-select" data-idx="${i}">${catOptions}</select></td>
+    </tr>`).join('');
+
+  tbody.querySelectorAll('.cat-select').forEach(sel => {
+    const t = shown[+sel.dataset.idx];
+    sel.value = t.cat;
+    sel.addEventListener('change', () => {
+      const newCat = sel.value;
+      // правило запоминается для мерчанта и применяется ко всем его транзакциям
+      state.userRules[merchantKey(t.merchant)] = newCat;
+      applyCategories(state.transactions);
+      assignColors();
+      persist();
+      render();
+    });
+  });
+
+  $('tx-count').textContent = `${txs.length} шт.`;
+  $('btn-more-rows').hidden = txs.length <= state.rowsShown;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/* ── Фильтры ── */
+function rebuildFilterOptions() {
+  const months = [...new Set(state.transactions.map(t => t.month))].sort().reverse();
+  $('filter-month').innerHTML = '<option value="all">Все месяцы</option>' +
+    months.map(m => `<option value="${m}">${monthLabel(m)}</option>`).join('');
+
+  const usedCats = [...new Set(state.transactions.map(t => t.cat))];
+  $('filter-cat').innerHTML = '<option value="all">Все категории</option>' +
+    CATEGORIES.filter(c => usedCats.includes(c.id))
+      .map(c => `<option value="${c.id}">${c.icon} ${c.name}</option>`).join('');
+}
+
+/* ── Экспорт CSV ── */
+function exportCSV() {
+  const rows = [['Дата', 'Мерчант', 'Описание', 'Сумма', 'Валюта', 'Категория']];
+  for (const t of state.transactions) {
+    rows.push([fmtDate(t.date), t.merchant, t.desc, String(t.amount).replace('.', ','), t.currency, CATEGORY_BY_ID[t.cat].name]);
+  }
+  const csv = rows.map(r => r.map(f => '"' + String(f).replace(/"/g, '""') + '"').join(';')).join('\r\n');
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'расходы-по-категориям.csv';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+/* ── Переключение экранов ── */
+function showDashboard() {
+  $('empty-state').hidden = true;
+  $('dashboard').hidden = false;
+  $('btn-export').hidden = false;
+  $('btn-clear').hidden = false;
+  rebuildFilterOptions();
+  render();
+}
+
+function showEmpty() {
+  $('empty-state').hidden = false;
+  $('dashboard').hidden = true;
+  $('btn-export').hidden = true;
+  $('btn-clear').hidden = true;
+}
+
+/* ── Инициализация ── */
+function init() {
+  initTheme();
+  restore();
+  initReceiptsUI();
+
+  // dropzone
+  const dz = $('dropzone');
+  ['dragover', 'dragenter'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('dragover'); }));
+  dz.addEventListener('drop', e => handleFiles(e.dataTransfer.files));
+
+  $('file-input').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+  $('file-input-more').addEventListener('change', e => { handleFiles(e.target.files); e.target.value = ''; });
+
+  $('btn-demo').addEventListener('click', () => {
+    state.transactions = generateDemoData();
+    applyCategories(state.transactions);
+    state.transactions.sort((a, b) => b.date - a.date);
+    assignColors();
+    persist();
+    showDashboard();
+  });
+
+  $('btn-theme').addEventListener('click', () => {
+    applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+  });
+
+  $('btn-export').addEventListener('click', exportCSV);
+
+  $('btn-clear').addEventListener('click', () => {
+    if (!confirm('Удалить все загруженные данные и правила категорий из этого браузера?')) return;
+    localStorage.removeItem(LS_TX);
+    localStorage.removeItem(LS_RULES);
+    localStorage.removeItem(LS_RECEIPTS);
+    localStorage.removeItem(LS_PRODUCT_RULES);
+    state.transactions = [];
+    state.userRules = {};
+    receiptsState.receipts = [];
+    receiptsState.productRules = {};
+    state.filters = { month: 'all', cat: 'all', q: '' };
+    showEmpty();
+  });
+
+  $('filter-month').addEventListener('change', e => { state.filters.month = e.target.value; state.rowsShown = 100; render(); });
+  $('filter-cat').addEventListener('change', e => { state.filters.cat = e.target.value; state.rowsShown = 100; render(); });
+  $('filter-q').addEventListener('input', e => { state.filters.q = e.target.value; state.rowsShown = 100; render(); });
+  $('btn-more-rows').addEventListener('click', () => { state.rowsShown += 200; render(); });
+
+  if (state.transactions.length) {
+    assignColors();
+    showDashboard();
+  }
+}
+
+document.addEventListener('DOMContentLoaded', init);
+
+</script>
+</body>
+</html>

@@ -5,8 +5,8 @@
 /* ── Декодирование файла ── */
 function decodeBuffer(buf) {
   const utf8 = new TextDecoder('utf-8', { fatal: false }).decode(buf);
-  // если много символов замены — это скорее всего windows-1257 (балтийская)
-  const badCount = (utf8.match(/�/g) || []).length;
+  // если много символов замены (U+FFFD) — это скорее всего windows-1257 (балтийская)
+  const badCount = (utf8.match(/\uFFFD/g) || []).length;
   if (badCount > 2) {
     try { return new TextDecoder('windows-1257').decode(buf); } catch (e) { /* оставляем utf-8 */ }
   }
