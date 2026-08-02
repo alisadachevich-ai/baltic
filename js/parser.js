@@ -130,7 +130,12 @@ function guessColumns(rows) {
 
 /* ── Главная функция: текст файла → массив транзакций ── */
 function parseStatement(buf, fileName) {
-  const text = decodeBuffer(buf);
+  return parseStatementFromText(decodeBuffer(buf), fileName);
+}
+
+/* Тот же разбор, но от уже готового текста — используется и для CSV,
+   и для текста, реконструированного из PDF (см. js/pdf-statement.js) */
+function parseStatementFromText(text, fileName) {
   const delim = detectDelimiter(text);
   const rows = parseCSV(text, delim);
   if (rows.length < 2) throw new Error('Файл пустой или не похож на CSV: ' + fileName);

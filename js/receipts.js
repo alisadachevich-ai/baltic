@@ -104,28 +104,37 @@ function receiptPrompt() {
 
 /* Общий вызов Claude API со структурированным выводом по схеме */
 async function claudeExtract({ content, schema, maxTokens = 8192 }) {
-  const apiKey = localStorage.getItem(LS_API_KEY);
+  const apiKey = (localStorage.getItem(LS_API_KEY) || '').trim();
   if (!apiKey) throw new Error('Нужен API-ключ Anthropic — добавь его в ⚙️ настройках раздела «Продуктовая корзина»');
+  if (!/^sk-ant-/.test(apiKey)) throw new Error('Похоже, ключ введён неверно — он должен начинаться с "sk-ant-". Проверь, не попал ли лишний пробел или перенос строки при копировании');
   const model = localStorage.getItem(LS_AI_MODEL) || 'claude-opus-4-8';
 
-  const resp = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      output_config: { format: { type: 'json_schema', schema } },
-      messages: [{ role: 'user', content }],
-    }),
-  });
+  let resp;
+  try {
+    resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        output_config: { format: { type: 'json_schema', schema } },
+        messages: [{ role: 'user', content }],
+      }),
+    });
+  } catch (networkErr) {
+    throw new Error('Не получилось достучаться до api.anthropic.com. Проверь интернет-соединение и не блокирует ли запрос антивирус/расширение браузера (adblock, VPN). Технически: ' + networkErr.message);
+  }
 
   if (!resp.ok) {
     const err = await resp.json().catch(() => ({}));
+    if (resp.status === 401) throw new Error('Ключ не принят (401) — проверь, что скопирован полностью и не отозван в консоли Anthropic');
+    if (resp.status === 403) throw new Error('Доступ запрещён (403): ' + (err.error?.message || 'у ключа нет прав на эту модель'));
+    if (resp.status === 429) throw new Error('Превышен лимит запросов (429) — подожди немного и попробуй снова');
     throw new Error('Claude API: ' + (err.error?.message || resp.status));
   }
   const data = await resp.json();

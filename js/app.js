@@ -89,8 +89,14 @@ async function handleFiles(fileList) {
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
       let txs;
       if (isPdf) {
-        setUploadStatus(`Читаю ${file.name} через Claude — это может занять минуту…`);
-        txs = await parseStatementPdfWithClaude(buf, file.name);
+        setUploadStatus(`Читаю ${file.name}…`);
+        try {
+          txs = await parseStatementPdfLocally(buf, file.name);
+        } catch (localErr) {
+          if (!localStorage.getItem(LS_API_KEY)) throw localErr;
+          setUploadStatus(`Не разобралось локально, пробую через Claude…`);
+          txs = await parseStatementPdfWithClaude(buf, file.name);
+        }
       } else {
         txs = parseStatement(buf, file.name);
       }
