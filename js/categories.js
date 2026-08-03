@@ -22,10 +22,26 @@ const CATEGORIES = [
   { id: 'travel',       name: 'Путешествия',         icon: '✈️' },
   { id: 'cash',         name: 'Наличные (банкомат)', icon: '🏧' },
   { id: 'fees',         name: 'Комиссии банка',      icon: '🏦' },
+  { id: 'mortgage',     name: 'Ипотека',             icon: '🏡' },
+  { id: 'debt',         name: 'Кредиты и займы',     icon: '🏦' },
+  { id: 'taxes',        name: 'Налоги и госплатежи', icon: '🧾' },
+  { id: 'insurance',    name: 'Страхование',         icon: '🛡️' },
+  { id: 'savings',      name: 'Накопления',          icon: '🐷' },
+  { id: 'family',       name: 'Семья',               icon: '👥' },
+  { id: 'internal',     name: 'Между своими счетами',icon: '↔️' },
   { id: 'transfers',    name: 'Переводы',            icon: '🔁' },
   { id: 'income',       name: 'Доходы',              icon: '💰' },
   { id: 'other',        name: 'Прочее',              icon: '📦' },
 ];
+
+/* Категории, которые НЕ являются реальным потреблением: движение денег
+   между своими счетами, накопления, переводы, доходы и деньги семьи —
+   их нельзя мешать с бытовыми тратами в графиках и суммах. */
+const NON_SPENDING = new Set(['internal', 'savings', 'transfers', 'income', 'family']);
+
+/* Обслуживание долга считается отдельно от повседневных трат —
+   платёж по ипотеке не то же самое, что ужин в кафе. */
+const DEBT_SERVICE = new Set(['mortgage', 'debt']);
 
 const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
 
@@ -205,6 +221,26 @@ const MERCHANT_RULES = [
   { m: ['IZNEMSANA', 'IZŅEMŠANA', 'SKAIDRAS NAUDAS', 'ATM ', 'CASH WITHDRAW', 'BANKOMAT'], cat: 'cash', name: 'Снятие наличных' },
   { m: ['KOMISIJA', 'KOMISIJAS MAKSA', 'MENESA MAKSA', 'MĒNEŠA MAKSA', 'KARTES MAKSA', ' FEE', 'SERVICE CHARGE', 'APKALPOSANAS MAKSA'], cat: 'fees', name: 'Комиссия банка' },
 
+  // ── Ипотека и кредиты ──
+  { m: ['HIPOTEKARAIS', 'HIPOTĒKĀRAIS', 'KREDITA MAKSAJUMS', 'KREDĪTA MAKSĀJUMS',
+        'AIZDEVUMS', 'LOAN PAYMENT'],  cat: 'mortgage',  name: 'Ипотека' },
+  { m: ['INDEXO'],                     cat: 'debt',      name: 'Indexo' },
+  { m: ['FERRATUM'],                   cat: 'debt',      name: 'Ferratum' },
+  { m: ['CREDIT24', 'BIGBANK', 'INBANK', 'CREDITSTAR'], cat: 'debt', name: 'Потребкредит' },
+
+  // ── Alexela (уже покрытые Tet/Bite см. выше, в «Связь и интернет») ──
+  { m: ['ALEXELA'],                    cat: 'utilities', name: 'Alexela (электричество)' },
+
+  // ── Налоги и самоуправление ──
+  { m: ['VALSTS IENEMUMU', 'VALSTS IEŅĒMUMU', 'VID ', 'NODOKLIS', 'NODEVA',
+        'RIGAS VALSTSPILSETAS', 'RĪGAS VALSTSPILSĒTAS', 'RIGAS DOME', 'RĪGAS DOME',
+        'PASVALDIBA', 'PAŠVALDĪBA', 'NEKUSTAMA IPASUMA NODOKLIS', 'NĪN'],
+    cat: 'taxes', name: 'Налоги / самоуправление' },
+
+  // ── Страхование ──
+  { m: ['BALTA', 'BTA ', 'IF APDROSINASANA', 'ERGO', 'GJENSIDIGE', 'COMPENSA',
+        'APDROSINASANA', 'APDROŠINĀŠANA'], cat: 'insurance', name: 'Страховка' },
+
   // ── Переводы ──
   { m: ['PAYPAL'],                     cat: 'transfers', name: 'PayPal' },
   { m: ['REVOLUT TOP-UP', 'TOP-UP', 'TOP UP'], cat: 'transfers', name: 'Пополнение' },
@@ -214,8 +250,43 @@ const MERCHANT_RULES = [
 /* Ключевые слова доходов — применяются только к поступлениям (amount > 0) */
 const INCOME_HINTS = ['ALGA', 'SALARY', 'DARBA SAMAKSA', 'ЗАРПЛАТА', 'AVANSS', 'DIVIDEN', 'ATMAKSA', 'REFUND', 'PROCENTI', 'INTEREST'];
 
+/* Свои и семейные счета определяем по имени получателя/отправителя, а не
+   по IBAN — в латвийских выписках имя пишется латиницей, часто без
+   диакритики, поэтому перед сравнением нормализуем. */
+function stripDiacritics(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+}
+
+/* Мои собственные счета — движение сюда и отсюда не является расходом.
+   Впиши сюда свои варианты написания имени (с диакритикой и без). */
+const MY_NAMES = ['ALISA DACEVICA', 'DACEVICA ALISA', 'ALISA DACEVIC'];
+
+/* Семья — не мой счёт, но и не покупка; отдельная категория. */
+const FAMILY_NAMES = ['VALENTINA DACHEVICH', 'DACHEVICH VALENTINA', 'VALENTINA DACEVICA'];
+
+const INTERNAL_HINTS = ['UZKRAJUMU', 'UZKRĀJUMU', 'SAVINGS', 'STARP SAVIEM', 'OWN ACCOUNT'];
+
+function matchName(desc, list) {
+  const up = stripDiacritics(desc).replace(/\s+/g, ' ');
+  return list.some(n => up.includes(n));
+}
+
 /* Определить категорию и «чистое» имя мерчанта по описанию транзакции. */
 function categorize(desc, amount) {
+  const norm = stripDiacritics(desc);
+
+  // движение между своими счетами и переводы себе — не расход и не доход
+  if (matchName(desc, MY_NAMES) || INTERNAL_HINTS.some(h => norm.includes(h))) {
+    return { cat: 'internal', merchant: 'Свой счёт' };
+  }
+  // деньги от/для семьи — тоже не покупка
+  if (matchName(desc, FAMILY_NAMES)) {
+    return { cat: 'family', merchant: 'Семья' };
+  }
+
   const up = ' ' + String(desc || '').toUpperCase().replace(/\s+/g, ' ').trim() + ' ';
 
   for (const rule of MERCHANT_RULES) {

@@ -166,7 +166,7 @@ async function handleFiles(fileList) {
 function assignColors() {
   const spend = {};
   for (const t of state.transactions) {
-    if (t.amount < 0 && t.cat !== 'transfers' && t.cat !== 'income') {
+    if (isExpense(t)) {
       spend[t.cat] = (spend[t.cat] || 0) + Math.abs(t.amount);
     }
   }
@@ -193,7 +193,10 @@ function filteredTx() {
   });
 }
 
-const isExpense = t => t.amount < 0 && t.cat !== 'transfers';
+/* «Реальное потребление»: расходы без движения между своими счетами,
+   накоплений, переводов и обслуживания долга — те считаются отдельно
+   (см. renderKPIs), иначе одни и те же деньги учитывались бы дважды. */
+const isExpense = t => t.amount < 0 && !NON_SPENDING.has(t.cat) && !DEBT_SERVICE.has(t.cat);
 
 /* ── Рендер всего дашборда ── */
 function render() {
@@ -230,6 +233,12 @@ function renderKPIs(txs) {
   const spent = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
   const income = txs.filter(t => t.amount > 0 && t.cat === 'income').reduce((s, t) => s + t.amount, 0);
 
+  // обслуживание долга, накопления и семья считаются отдельно от бытовых трат
+  const debtService = txs.filter(t => t.amount < 0 && DEBT_SERVICE.has(t.cat)).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const savings = txs.filter(t => t.amount < 0 && t.cat === 'savings').reduce((s, t) => s + Math.abs(t.amount), 0);
+  const familyReceived = txs.filter(t => t.amount > 0 && t.cat === 'family').reduce((s, t) => s + t.amount, 0);
+  const familySent = txs.filter(t => t.amount < 0 && t.cat === 'family').reduce((s, t) => s + Math.abs(t.amount), 0);
+
   let perDay = 0;
   if (expenses.length) {
     const times = expenses.map(t => t.date.getTime());
@@ -242,7 +251,10 @@ function renderKPIs(txs) {
   const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
 
   const kpis = [
-    { label: 'Расходы', value: fmtEur(spent, 2), cls: '', sub: `${expenses.length} транзакций` },
+    { label: 'Расходы', value: fmtEur(spent, 2), cls: '', sub: `${expenses.length} транзакций, реальное потребление` },
+    { label: 'Обслуживание долга', value: debtService ? fmtEur(debtService, 2) : '—', cls: '', sub: 'ипотека + кредиты' },
+    { label: 'Отложено', value: savings ? fmtEur(savings, 2) : '—', cls: savings ? 'good' : '', sub: 'накопления' },
+    { label: 'Семья', value: (familyReceived || familySent) ? fmtEur(familyReceived - familySent, 2) : '—', cls: '', sub: `получено ${fmtEur(familyReceived, 2)} · отправлено ${fmtEur(familySent, 2)}`, small: true },
     { label: 'Доходы', value: income ? fmtEur(income, 2) : '—', cls: income ? 'good' : '', sub: income ? 'зарплата и поступления' : 'не найдено в выписке' },
     { label: 'В среднем в день', value: fmtEur(perDay, 2), cls: '', sub: 'по дням с тратами в периоде' },
     topCat

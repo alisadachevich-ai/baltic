@@ -472,10 +472,26 @@ const CATEGORIES = [
   { id: 'travel',       name: 'Путешествия',         icon: '✈️' },
   { id: 'cash',         name: 'Наличные (банкомат)', icon: '🏧' },
   { id: 'fees',         name: 'Комиссии банка',      icon: '🏦' },
+  { id: 'mortgage',     name: 'Ипотека',             icon: '🏡' },
+  { id: 'debt',         name: 'Кредиты и займы',     icon: '🏦' },
+  { id: 'taxes',        name: 'Налоги и госплатежи', icon: '🧾' },
+  { id: 'insurance',    name: 'Страхование',         icon: '🛡️' },
+  { id: 'savings',      name: 'Накопления',          icon: '🐷' },
+  { id: 'family',       name: 'Семья',               icon: '👥' },
+  { id: 'internal',     name: 'Между своими счетами',icon: '↔️' },
   { id: 'transfers',    name: 'Переводы',            icon: '🔁' },
   { id: 'income',       name: 'Доходы',              icon: '💰' },
   { id: 'other',        name: 'Прочее',              icon: '📦' },
 ];
+
+/* Категории, которые НЕ являются реальным потреблением: движение денег
+   между своими счетами, накопления, переводы, доходы и деньги семьи —
+   их нельзя мешать с бытовыми тратами в графиках и суммах. */
+const NON_SPENDING = new Set(['internal', 'savings', 'transfers', 'income', 'family']);
+
+/* Обслуживание долга считается отдельно от повседневных трат —
+   платёж по ипотеке не то же самое, что ужин в кафе. */
+const DEBT_SERVICE = new Set(['mortgage', 'debt']);
 
 const CATEGORY_BY_ID = Object.fromEntries(CATEGORIES.map(c => [c.id, c]));
 
@@ -655,6 +671,26 @@ const MERCHANT_RULES = [
   { m: ['IZNEMSANA', 'IZŅEMŠANA', 'SKAIDRAS NAUDAS', 'ATM ', 'CASH WITHDRAW', 'BANKOMAT'], cat: 'cash', name: 'Снятие наличных' },
   { m: ['KOMISIJA', 'KOMISIJAS MAKSA', 'MENESA MAKSA', 'MĒNEŠA MAKSA', 'KARTES MAKSA', ' FEE', 'SERVICE CHARGE', 'APKALPOSANAS MAKSA'], cat: 'fees', name: 'Комиссия банка' },
 
+  // ── Ипотека и кредиты ──
+  { m: ['HIPOTEKARAIS', 'HIPOTĒKĀRAIS', 'KREDITA MAKSAJUMS', 'KREDĪTA MAKSĀJUMS',
+        'AIZDEVUMS', 'LOAN PAYMENT'],  cat: 'mortgage',  name: 'Ипотека' },
+  { m: ['INDEXO'],                     cat: 'debt',      name: 'Indexo' },
+  { m: ['FERRATUM'],                   cat: 'debt',      name: 'Ferratum' },
+  { m: ['CREDIT24', 'BIGBANK', 'INBANK', 'CREDITSTAR'], cat: 'debt', name: 'Потребкредит' },
+
+  // ── Alexela (уже покрытые Tet/Bite см. выше, в «Связь и интернет») ──
+  { m: ['ALEXELA'],                    cat: 'utilities', name: 'Alexela (электричество)' },
+
+  // ── Налоги и самоуправление ──
+  { m: ['VALSTS IENEMUMU', 'VALSTS IEŅĒMUMU', 'VID ', 'NODOKLIS', 'NODEVA',
+        'RIGAS VALSTSPILSETAS', 'RĪGAS VALSTSPILSĒTAS', 'RIGAS DOME', 'RĪGAS DOME',
+        'PASVALDIBA', 'PAŠVALDĪBA', 'NEKUSTAMA IPASUMA NODOKLIS', 'NĪN'],
+    cat: 'taxes', name: 'Налоги / самоуправление' },
+
+  // ── Страхование ──
+  { m: ['BALTA', 'BTA ', 'IF APDROSINASANA', 'ERGO', 'GJENSIDIGE', 'COMPENSA',
+        'APDROSINASANA', 'APDROŠINĀŠANA'], cat: 'insurance', name: 'Страховка' },
+
   // ── Переводы ──
   { m: ['PAYPAL'],                     cat: 'transfers', name: 'PayPal' },
   { m: ['REVOLUT TOP-UP', 'TOP-UP', 'TOP UP'], cat: 'transfers', name: 'Пополнение' },
@@ -664,8 +700,43 @@ const MERCHANT_RULES = [
 /* Ключевые слова доходов — применяются только к поступлениям (amount > 0) */
 const INCOME_HINTS = ['ALGA', 'SALARY', 'DARBA SAMAKSA', 'ЗАРПЛАТА', 'AVANSS', 'DIVIDEN', 'ATMAKSA', 'REFUND', 'PROCENTI', 'INTEREST'];
 
+/* Свои и семейные счета определяем по имени получателя/отправителя, а не
+   по IBAN — в латвийских выписках имя пишется латиницей, часто без
+   диакритики, поэтому перед сравнением нормализуем. */
+function stripDiacritics(s) {
+  return String(s || '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+}
+
+/* Мои собственные счета — движение сюда и отсюда не является расходом.
+   Впиши сюда свои варианты написания имени (с диакритикой и без). */
+const MY_NAMES = ['ALISA DACEVICA', 'DACEVICA ALISA', 'ALISA DACEVIC'];
+
+/* Семья — не мой счёт, но и не покупка; отдельная категория. */
+const FAMILY_NAMES = ['VALENTINA DACHEVICH', 'DACHEVICH VALENTINA', 'VALENTINA DACEVICA'];
+
+const INTERNAL_HINTS = ['UZKRAJUMU', 'UZKRĀJUMU', 'SAVINGS', 'STARP SAVIEM', 'OWN ACCOUNT'];
+
+function matchName(desc, list) {
+  const up = stripDiacritics(desc).replace(/\s+/g, ' ');
+  return list.some(n => up.includes(n));
+}
+
 /* Определить категорию и «чистое» имя мерчанта по описанию транзакции. */
 function categorize(desc, amount) {
+  const norm = stripDiacritics(desc);
+
+  // движение между своими счетами и переводы себе — не расход и не доход
+  if (matchName(desc, MY_NAMES) || INTERNAL_HINTS.some(h => norm.includes(h))) {
+    return { cat: 'internal', merchant: 'Свой счёт' };
+  }
+  // деньги от/для семьи — тоже не покупка
+  if (matchName(desc, FAMILY_NAMES)) {
+    return { cat: 'family', merchant: 'Семья' };
+  }
+
   const up = ' ' + String(desc || '').toUpperCase().replace(/\s+/g, ' ').trim() + ' ';
 
   for (const rule of MERCHANT_RULES) {
@@ -1141,7 +1212,16 @@ function generateDemoData() {
     add(base + 12, 'SKAIDRAS NAUDAS IZNEMSANA ATM SWEDBANK', -50);
     // зарплата
     add(base + 1, 'DARBA ALGA SIA UZNEMUMS', between(1450, 1650));
+    // ипотека, страховка, налоги — не бытовые траты, считаются отдельно
+    add(base + 3, 'HIPOTEKARAIS KREDITA MAKSAJUMS SWEDBANK', -420);
+    add(base + 4, 'BALTA APDROSINASANA OCTA', -18.5);
+    // между своими счетами — откладываю на накопительный счёт
+    add(base + 2, 'PARSKAITIJUMS ALISA DACEVICA UZKRAJUMU KONTS', -100);
+    // семья
+    add(base + 7, 'PARSKAITIJUMS VALENTINA DACHEVICH', -50);
   }
+  add(35, 'RIGAS VALSTSPILSETAS PASVALDIBA NIN', -34);
+  add(80, 'PARSKAITIJUMS VALENTINA DACHEVICH DZIMSANAS DIENA', 30);
   // разовые
   add(20, 'AIRBALTIC RIGA TICKETS', -89.99);
   add(45, 'BOOKING.COM HOTEL VILNIUS', -124);
@@ -1978,6 +2058,20 @@ function computeInsights(txs, allTxs) {
     }
   }
 
+  // 8. Долговая нагрузка: обслуживание долга относительно дохода
+  const income = txs.filter(t => t.amount > 0 && t.cat === 'income').reduce((s, t) => s + t.amount, 0);
+  const debtService = txs.filter(t => t.amount < 0 && DEBT_SERVICE.has(t.cat)).reduce((s, t) => s + Math.abs(t.amount), 0);
+  if (debtService > 0 && income > 0) {
+    const ratio = Math.round(debtService / income * 100);
+    insights.push({
+      icon: '🏡',
+      title: `Долговая нагрузка — ${ratio}% дохода`,
+      text: ratio >= 30
+        ? `${fmtEur(debtService, 2)} из ${fmtEur(income, 2)} дохода. Выше 30% — банки считают это высокой нагрузкой.`
+        : `${fmtEur(debtService, 2)} из ${fmtEur(income, 2)} дохода уходит на ипотеку и кредиты.`,
+    });
+  }
+
   return insights;
 }
 
@@ -2219,7 +2313,7 @@ async function handleFiles(fileList) {
 function assignColors() {
   const spend = {};
   for (const t of state.transactions) {
-    if (t.amount < 0 && t.cat !== 'transfers' && t.cat !== 'income') {
+    if (isExpense(t)) {
       spend[t.cat] = (spend[t.cat] || 0) + Math.abs(t.amount);
     }
   }
@@ -2246,7 +2340,10 @@ function filteredTx() {
   });
 }
 
-const isExpense = t => t.amount < 0 && t.cat !== 'transfers';
+/* «Реальное потребление»: расходы без движения между своими счетами,
+   накоплений, переводов и обслуживания долга — те считаются отдельно
+   (см. renderKPIs), иначе одни и те же деньги учитывались бы дважды. */
+const isExpense = t => t.amount < 0 && !NON_SPENDING.has(t.cat) && !DEBT_SERVICE.has(t.cat);
 
 /* ── Рендер всего дашборда ── */
 function render() {
@@ -2283,6 +2380,12 @@ function renderKPIs(txs) {
   const spent = expenses.reduce((s, t) => s + Math.abs(t.amount), 0);
   const income = txs.filter(t => t.amount > 0 && t.cat === 'income').reduce((s, t) => s + t.amount, 0);
 
+  // обслуживание долга, накопления и семья считаются отдельно от бытовых трат
+  const debtService = txs.filter(t => t.amount < 0 && DEBT_SERVICE.has(t.cat)).reduce((s, t) => s + Math.abs(t.amount), 0);
+  const savings = txs.filter(t => t.amount < 0 && t.cat === 'savings').reduce((s, t) => s + Math.abs(t.amount), 0);
+  const familyReceived = txs.filter(t => t.amount > 0 && t.cat === 'family').reduce((s, t) => s + t.amount, 0);
+  const familySent = txs.filter(t => t.amount < 0 && t.cat === 'family').reduce((s, t) => s + Math.abs(t.amount), 0);
+
   let perDay = 0;
   if (expenses.length) {
     const times = expenses.map(t => t.date.getTime());
@@ -2295,7 +2398,10 @@ function renderKPIs(txs) {
   const topCat = Object.entries(byCat).sort((a, b) => b[1] - a[1])[0];
 
   const kpis = [
-    { label: 'Расходы', value: fmtEur(spent, 2), cls: '', sub: `${expenses.length} транзакций` },
+    { label: 'Расходы', value: fmtEur(spent, 2), cls: '', sub: `${expenses.length} транзакций, реальное потребление` },
+    { label: 'Обслуживание долга', value: debtService ? fmtEur(debtService, 2) : '—', cls: '', sub: 'ипотека + кредиты' },
+    { label: 'Отложено', value: savings ? fmtEur(savings, 2) : '—', cls: savings ? 'good' : '', sub: 'накопления' },
+    { label: 'Семья', value: (familyReceived || familySent) ? fmtEur(familyReceived - familySent, 2) : '—', cls: '', sub: `получено ${fmtEur(familyReceived, 2)} · отправлено ${fmtEur(familySent, 2)}`, small: true },
     { label: 'Доходы', value: income ? fmtEur(income, 2) : '—', cls: income ? 'good' : '', sub: income ? 'зарплата и поступления' : 'не найдено в выписке' },
     { label: 'В среднем в день', value: fmtEur(perDay, 2), cls: '', sub: 'по дням с тратами в периоде' },
     topCat

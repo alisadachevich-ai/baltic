@@ -113,6 +113,20 @@ function computeInsights(txs, allTxs) {
     }
   }
 
+  // 8. Долговая нагрузка: обслуживание долга относительно дохода
+  const income = txs.filter(t => t.amount > 0 && t.cat === 'income').reduce((s, t) => s + t.amount, 0);
+  const debtService = txs.filter(t => t.amount < 0 && DEBT_SERVICE.has(t.cat)).reduce((s, t) => s + Math.abs(t.amount), 0);
+  if (debtService > 0 && income > 0) {
+    const ratio = Math.round(debtService / income * 100);
+    insights.push({
+      icon: '🏡',
+      title: `Долговая нагрузка — ${ratio}% дохода`,
+      text: ratio >= 30
+        ? `${fmtEur(debtService, 2)} из ${fmtEur(income, 2)} дохода. Выше 30% — банки считают это высокой нагрузкой.`
+        : `${fmtEur(debtService, 2)} из ${fmtEur(income, 2)} дохода уходит на ипотеку и кредиты.`,
+    });
+  }
+
   return insights;
 }
 

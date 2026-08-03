@@ -65,7 +65,16 @@ function generateDemoData() {
     add(base + 12, 'SKAIDRAS NAUDAS IZNEMSANA ATM SWEDBANK', -50);
     // зарплата
     add(base + 1, 'DARBA ALGA SIA UZNEMUMS', between(1450, 1650));
+    // ипотека, страховка, налоги — не бытовые траты, считаются отдельно
+    add(base + 3, 'HIPOTEKARAIS KREDITA MAKSAJUMS SWEDBANK', -420);
+    add(base + 4, 'BALTA APDROSINASANA OCTA', -18.5);
+    // между своими счетами — откладываю на накопительный счёт
+    add(base + 2, 'PARSKAITIJUMS ALISA DACEVICA UZKRAJUMU KONTS', -100);
+    // семья
+    add(base + 7, 'PARSKAITIJUMS VALENTINA DACHEVICH', -50);
   }
+  add(35, 'RIGAS VALSTSPILSETAS PASVALDIBA NIN', -34);
+  add(80, 'PARSKAITIJUMS VALENTINA DACHEVICH DZIMSANAS DIENA', 30);
   // разовые
   add(20, 'AIRBALTIC RIGA TICKETS', -89.99);
   add(45, 'BOOKING.COM HOTEL VILNIUS', -124);
