@@ -238,25 +238,32 @@ function initReceiptsUI() {
     const text = $('receipt-textarea').value.trim();
     if (!text) return;
     const status = $('receipt-dialog-status');
+    const btn = $('btn-parse-receipt-text');
     try {
-      status.textContent = 'Разбираю…';
+      btn.disabled = true;
+      status.textContent = '⏳ Разбираю…';
+      status.classList.add('status-busy');
       let parsed;
       try {
         parsed = parseReceiptText(text);
       } catch (heuristicError) {
         // локально не разобрался — пробуем через Claude, если есть ключ
         if (localStorage.getItem(LS_API_KEY)) {
-          status.textContent = 'Локально не разобрала, отправляю в Claude…';
-          parsed = await parseReceiptWithClaude({ text });
+          status.textContent = '⏳ Локально не разобрала, отправляю в Claude…';
+          parsed = await withTimeout(parseReceiptWithClaude({ text }), 45000, 'чек');
         } else throw heuristicError;
       }
       addReceipt(parsed, 'text');
       $('receipt-textarea').value = '';
       status.textContent = '';
+      status.classList.remove('status-busy');
       $('receipt-dialog').close();
       renderReceipts();
     } catch (e) {
+      status.classList.remove('status-busy');
       status.textContent = '⚠️ ' + e.message;
+    } finally {
+      btn.disabled = false;
     }
   });
 
@@ -264,13 +271,16 @@ function initReceiptsUI() {
     const files = [...e.target.files];
     e.target.value = '';
     const status = $('receipts-status');
-    for (const file of files) {
+    status.classList.add('status-busy');
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      const progress = files.length > 1 ? `(${i + 1}/${files.length}) ` : '';
       try {
-        status.textContent = `Распознаю ${file.name} через Claude…`;
+        status.textContent = `${progress}⏳ Распознаю ${file.name} через Claude…`;
         const buf = await file.arrayBuffer();
         const base64 = arrayBufferToBase64(buf);
         const mediaType = file.type || 'image/jpeg';
-        const parsed = await parseReceiptWithClaude({ base64, mediaType });
+        const parsed = await withTimeout(parseReceiptWithClaude({ base64, mediaType }), 45000, file.name);
         addReceipt(parsed, 'photo');
         renderReceipts();
         status.textContent = '';
@@ -278,6 +288,7 @@ function initReceiptsUI() {
         status.textContent = '⚠️ ' + err.message;
       }
     }
+    status.classList.remove('status-busy');
   });
 }
 
@@ -292,13 +303,18 @@ function arrayBufferToBase64(buf) {
 }
 
 /* Отрисовка корзины: учитывает фильтр месяца из основного состояния */
-function renderReceipts() {
+/* Чеки за выбранный в общем фильтре месяц (или все, если фильтр не задан) */
+function filteredReceipts() {
   const month = state.filters.month;
-  const receipts = receiptsState.receipts.filter(r => {
+  return receiptsState.receipts.filter(r => {
     if (month === 'all') return true;
     const rm = r.date.getFullYear() + '-' + String(r.date.getMonth() + 1).padStart(2, '0');
     return rm === month;
   });
+}
+
+function renderReceipts() {
+  const receipts = filteredReceipts();
 
   const empty = !receiptsState.receipts.length;
   $('basket-empty').hidden = !empty;

@@ -154,6 +154,19 @@ body {
 .catbar-fill { position: absolute; inset: 0 auto 0 0; border-radius: 4px; min-width: 2px; }
 .catbar-val { text-align: right; font-variant-numeric: tabular-nums; color: var(--text-primary); }
 
+/* советы по оптимизации */
+.insights-card { margin-bottom: 16px; }
+.insight-row { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--grid); }
+.insight-row:last-child { border-bottom: none; }
+.insight-icon { font-size: 20px; flex: none; width: 26px; text-align: center; line-height: 1.3; }
+.insight-body { min-width: 0; }
+.insight-title { font-weight: 600; font-size: 13.5px; margin-bottom: 2px; }
+.insight-text { font-size: 13px; color: var(--text-secondary); }
+
+/* индикатор «идёт обработка», отличимый от зависания */
+.status-busy { animation: statusPulse 1.1s ease-in-out infinite; }
+@keyframes statusPulse { 0%, 100% { opacity: 1; } 50% { opacity: .4; } }
+
 /* топ мерчантов */
 .merchant-row { display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--grid); font-size: 13px; }
 .merchant-row:last-child { border-bottom: none; }

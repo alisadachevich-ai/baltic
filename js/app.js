@@ -71,48 +71,86 @@ function restore() {
 }
 
 /* ── Приём файлов ── */
-function setUploadStatus(msg) {
+let filesProcessing = false;
+
+function setUploadStatus(msg, busy) {
   for (const id of ['upload-status', 'upload-status-2']) {
     const el = $(id);
-    if (el) el.textContent = msg;
+    if (!el) continue;
+    el.textContent = msg;
+    el.classList.toggle('status-busy', !!busy);
   }
 }
 
+function setUploadInputsDisabled(disabled) {
+  for (const id of ['file-input', 'file-input-more', 'btn-demo']) {
+    const el = $(id);
+    if (el) el.disabled = disabled;
+  }
+}
+
+function withTimeout(promise, ms, fileName) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(
+      `${fileName}: не ответило за ${Math.round(ms / 1000)} сек — файл слишком большой, повреждён, или браузер завис на обработке. Попробуй другой файл или перезагрузи страницу.`
+    )), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function handleFiles(fileList) {
+  if (filesProcessing) { alert('Уже обрабатываю предыдущий файл — подожди, пожалуйста.'); return; }
+  const files = [...fileList];
+  if (!files.length) return;
+
+  filesProcessing = true;
+  setUploadInputsDisabled(true);
+
   const errors = [];
-  let added = 0;
+  let added = 0, duplicates = 0;
   const seen = new Set(state.transactions.map(t => t.date.getTime() + '|' + t.amount + '|' + t.desc));
 
-  for (const file of fileList) {
+  for (let i = 0; i < files.length; i++) {
+    const file = files[i];
+    const progress = files.length > 1 ? `(${i + 1}/${files.length}) ` : '';
     try {
       const buf = await file.arrayBuffer();
       const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
       let txs;
       if (isPdf) {
-        setUploadStatus(`Читаю ${file.name}…`);
+        setUploadStatus(`${progress}⏳ Читаю ${file.name}…`, true);
         try {
-          txs = await parseStatementPdfLocally(buf, file.name);
+          txs = await withTimeout(parseStatementPdfLocally(buf, file.name), 30000, file.name);
         } catch (localErr) {
           if (!localStorage.getItem(LS_API_KEY)) throw localErr;
-          setUploadStatus(`Не разобралось локально, пробую через Claude…`);
-          txs = await parseStatementPdfWithClaude(buf, file.name);
+          setUploadStatus(`${progress}⏳ Не разобралось локально, пробую через Claude…`, true);
+          txs = await withTimeout(parseStatementPdfWithClaude(buf, file.name), 60000, file.name);
         }
       } else {
+        setUploadStatus(`${progress}⏳ Читаю ${file.name}…`, true);
         txs = parseStatement(buf, file.name);
       }
       for (const t of txs) {
         const key = t.date.getTime() + '|' + t.amount + '|' + t.desc;
-        if (seen.has(key)) continue;   // дедупликация при повторной загрузке
+        if (seen.has(key)) { duplicates++; continue; }   // дедупликация при повторной загрузке
         seen.add(key);
         state.transactions.push(t);
         added++;
       }
     } catch (e) {
-      errors.push(e.message);
+      errors.push(`${file.name}: ${e.message}`);
     }
   }
 
-  setUploadStatus('');
+  filesProcessing = false;
+  setUploadInputsDisabled(false);
+
+  const parts = [];
+  if (added) parts.push(`добавлено новых: ${added}`);
+  if (duplicates) parts.push(`пропущено дублей: ${duplicates}`);
+  setUploadStatus(parts.length ? '✅ ' + parts.join(', ') : (errors.length ? '' : 'Ничего нового не найдено — похоже, всё уже было загружено'), false);
+
   if (errors.length) alert('Проблемы при чтении:\n' + errors.join('\n'));
   if (added) {
     applyCategories(state.transactions);
@@ -161,11 +199,30 @@ const isExpense = t => t.amount < 0 && t.cat !== 'transfers';
 function render() {
   const txs = filteredTx();
   renderKPIs(txs);
+  renderInsightsPanel(txs);
   renderMonthly(txs);
   renderCats(txs);
   renderMerchants(txs);
   renderTable(txs);
   renderReceipts();
+}
+
+function renderInsightsPanel(txs) {
+  const insights = [
+    ...computeInsights(txs, state.transactions),
+    ...computeProductInsights(filteredReceipts()),
+  ];
+  const card = $('insights-card');
+  if (!insights.length) { card.hidden = true; return; }
+  card.hidden = false;
+  $('insights-list').innerHTML = insights.map(i => `
+    <div class="insight-row">
+      <span class="insight-icon">${i.icon}</span>
+      <div class="insight-body">
+        <div class="insight-title">${escapeHtml(i.title)}</div>
+        <div class="insight-text">${escapeHtml(i.text)}</div>
+      </div>
+    </div>`).join('');
 }
 
 function renderKPIs(txs) {
