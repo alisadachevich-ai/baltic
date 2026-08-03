@@ -204,6 +204,7 @@ function render() {
   renderKPIs(txs);
   renderInsightsPanel(txs);
   renderMonthly(txs);
+  renderTrends();
   renderCats(txs);
   renderMerchants(txs);
   renderTable(txs);
@@ -291,6 +292,56 @@ function renderMonthly(txs) {
   renderMonthlyChart($('chart-monthly'), months, usedSeries);
   renderLegend($('legend-monthly'), usedSeries);
   $('monthly-note').textContent = months.length ? 'наведи на сегмент, чтобы увидеть детали' : '';
+}
+
+/* Тренды по категориям месяц к месяцу: считаются по ВСЕЙ загруженной
+   истории, не по текущему фильтру месяца — иначе сравнивать было бы не с чем. */
+function renderTrends() {
+  const expenses = state.transactions.filter(isExpense);
+  const months = [...new Set(expenses.map(t => t.month))].sort();
+  const card = $('trends-card');
+  if (months.length < 2) { card.hidden = true; return; }
+  card.hidden = false;
+
+  const byCat = {};
+  const totalByMonth = {};
+  for (const t of expenses) {
+    byCat[t.cat] = byCat[t.cat] || {};
+    byCat[t.cat][t.month] = (byCat[t.cat][t.month] || 0) + Math.abs(t.amount);
+    totalByMonth[t.month] = (totalByMonth[t.month] || 0) + Math.abs(t.amount);
+  }
+  const catRows = Object.entries(byCat)
+    .map(([catId, byMonth]) => ({ catId, byMonth, total: Object.values(byMonth).reduce((s, v) => s + v, 0) }))
+    .sort((a, b) => b.total - a.total);
+
+  const deltaCell = (cur, prev) => {
+    if (!prev) return '';
+    const pct = Math.round((cur - prev) / prev * 100);
+    if (Math.abs(pct) < 3) return `<span class="trend-delta flat">≈ без изменений</span>`;
+    const cls = pct > 0 ? 'up' : 'down';
+    const arrow = pct > 0 ? '▲' : '▼';
+    return `<span class="trend-delta ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
+  };
+
+  $('trends-thead-row').innerHTML = `<th>Категория</th>` + months.map(m => `<th>${monthLabel(m)}</th>`).join('');
+
+  const rowsHtml = catRows.map(row => {
+    const cells = months.map((m, i) => {
+      const cur = row.byMonth[m] || 0;
+      const prev = i > 0 ? (row.byMonth[months[i - 1]] || 0) : 0;
+      if (!cur) return `<td>–</td>`;
+      return `<td><span class="trend-amount">${fmtEur(cur, 2)}</span>${deltaCell(cur, prev)}</td>`;
+    }).join('');
+    return `<tr><td><span class="trend-cat">${CATEGORY_BY_ID[row.catId].icon} ${CATEGORY_BY_ID[row.catId].name}</span></td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = months.map((m, i) => {
+    const cur = totalByMonth[m] || 0;
+    const prev = i > 0 ? (totalByMonth[months[i - 1]] || 0) : 0;
+    return `<td><span class="trend-amount">${fmtEur(cur, 2)}</span>${deltaCell(cur, prev)}</td>`;
+  }).join('');
+
+  $('trends-tbody').innerHTML = rowsHtml + `<tr class="trends-total"><td>Итого</td>${totalCells}</tr>`;
 }
 
 function renderCats(txs) {

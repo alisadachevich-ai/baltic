@@ -207,6 +207,24 @@ body {
 
 .foot { margin-top: 32px; text-align: center; font-size: 12px; color: var(--text-muted); }
 
+/* ── Тренды по категориям ────────────────────────────────── */
+.trends-card { margin-bottom: 16px; }
+#trends-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#trends-table th {
+  text-align: right; font-weight: 600; color: var(--text-secondary);
+  padding: 8px 10px; border-bottom: 1px solid var(--baseline); white-space: nowrap;
+}
+#trends-table th:first-child { text-align: left; }
+#trends-table td { padding: 7px 10px; border-bottom: 1px solid var(--grid); text-align: right; vertical-align: top; white-space: nowrap; }
+#trends-table td:first-child { text-align: left; white-space: normal; }
+#trends-table tr.trends-total td { font-weight: 600; border-top: 1px solid var(--baseline); border-bottom: none; }
+.trend-cat { display: inline-flex; align-items: center; gap: 6px; }
+.trend-amount { font-variant-numeric: tabular-nums; }
+.trend-delta { display: block; font-size: 11px; font-variant-numeric: tabular-nums; }
+.trend-delta.up { color: var(--bad); }
+.trend-delta.down { color: var(--good); }
+.trend-delta.flat { color: var(--text-muted); }
+
 /* ── Продуктовая корзина ─────────────────────────────────── */
 .basket-card { margin-bottom: 16px; }
 .basket-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }

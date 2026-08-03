@@ -214,6 +214,24 @@ body {
 
 .foot { margin-top: 32px; text-align: center; font-size: 12px; color: var(--text-muted); }
 
+/* ── Тренды по категориям ────────────────────────────────── */
+.trends-card { margin-bottom: 16px; }
+#trends-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+#trends-table th {
+  text-align: right; font-weight: 600; color: var(--text-secondary);
+  padding: 8px 10px; border-bottom: 1px solid var(--baseline); white-space: nowrap;
+}
+#trends-table th:first-child { text-align: left; }
+#trends-table td { padding: 7px 10px; border-bottom: 1px solid var(--grid); text-align: right; vertical-align: top; white-space: nowrap; }
+#trends-table td:first-child { text-align: left; white-space: normal; }
+#trends-table tr.trends-total td { font-weight: 600; border-top: 1px solid var(--baseline); border-bottom: none; }
+.trend-cat { display: inline-flex; align-items: center; gap: 6px; }
+.trend-amount { font-variant-numeric: tabular-nums; }
+.trend-delta { display: block; font-size: 11px; font-variant-numeric: tabular-nums; }
+.trend-delta.up { color: var(--bad); }
+.trend-delta.down { color: var(--good); }
+.trend-delta.flat { color: var(--text-muted); }
+
 /* ── Продуктовая корзина ─────────────────────────────────── */
 .basket-card { margin-bottom: 16px; }
 .basket-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
@@ -357,6 +375,19 @@ dialog textarea {
       <div class="card chart-card">
         <div class="card-head"><h3>Топ мерчантов</h3></div>
         <div id="top-merchants"></div>
+      </div>
+    </div>
+
+    <div class="card trends-card" id="trends-card" hidden>
+      <div class="card-head">
+        <h3>📊 Тренды по категориям</h3>
+        <span class="card-note">как каждая статья расходов меняется от месяца к месяцу</span>
+      </div>
+      <div class="table-wrap">
+        <table id="trends-table">
+          <thead><tr id="trends-thead-row"></tr></thead>
+          <tbody id="trends-tbody"></tbody>
+        </table>
       </div>
     </div>
 
@@ -2351,6 +2382,7 @@ function render() {
   renderKPIs(txs);
   renderInsightsPanel(txs);
   renderMonthly(txs);
+  renderTrends();
   renderCats(txs);
   renderMerchants(txs);
   renderTable(txs);
@@ -2438,6 +2470,56 @@ function renderMonthly(txs) {
   renderMonthlyChart($('chart-monthly'), months, usedSeries);
   renderLegend($('legend-monthly'), usedSeries);
   $('monthly-note').textContent = months.length ? 'наведи на сегмент, чтобы увидеть детали' : '';
+}
+
+/* Тренды по категориям месяц к месяцу: считаются по ВСЕЙ загруженной
+   истории, не по текущему фильтру месяца — иначе сравнивать было бы не с чем. */
+function renderTrends() {
+  const expenses = state.transactions.filter(isExpense);
+  const months = [...new Set(expenses.map(t => t.month))].sort();
+  const card = $('trends-card');
+  if (months.length < 2) { card.hidden = true; return; }
+  card.hidden = false;
+
+  const byCat = {};
+  const totalByMonth = {};
+  for (const t of expenses) {
+    byCat[t.cat] = byCat[t.cat] || {};
+    byCat[t.cat][t.month] = (byCat[t.cat][t.month] || 0) + Math.abs(t.amount);
+    totalByMonth[t.month] = (totalByMonth[t.month] || 0) + Math.abs(t.amount);
+  }
+  const catRows = Object.entries(byCat)
+    .map(([catId, byMonth]) => ({ catId, byMonth, total: Object.values(byMonth).reduce((s, v) => s + v, 0) }))
+    .sort((a, b) => b.total - a.total);
+
+  const deltaCell = (cur, prev) => {
+    if (!prev) return '';
+    const pct = Math.round((cur - prev) / prev * 100);
+    if (Math.abs(pct) < 3) return `<span class="trend-delta flat">≈ без изменений</span>`;
+    const cls = pct > 0 ? 'up' : 'down';
+    const arrow = pct > 0 ? '▲' : '▼';
+    return `<span class="trend-delta ${cls}">${arrow} ${Math.abs(pct)}%</span>`;
+  };
+
+  $('trends-thead-row').innerHTML = `<th>Категория</th>` + months.map(m => `<th>${monthLabel(m)}</th>`).join('');
+
+  const rowsHtml = catRows.map(row => {
+    const cells = months.map((m, i) => {
+      const cur = row.byMonth[m] || 0;
+      const prev = i > 0 ? (row.byMonth[months[i - 1]] || 0) : 0;
+      if (!cur) return `<td>–</td>`;
+      return `<td><span class="trend-amount">${fmtEur(cur, 2)}</span>${deltaCell(cur, prev)}</td>`;
+    }).join('');
+    return `<tr><td><span class="trend-cat">${CATEGORY_BY_ID[row.catId].icon} ${CATEGORY_BY_ID[row.catId].name}</span></td>${cells}</tr>`;
+  }).join('');
+
+  const totalCells = months.map((m, i) => {
+    const cur = totalByMonth[m] || 0;
+    const prev = i > 0 ? (totalByMonth[months[i - 1]] || 0) : 0;
+    return `<td><span class="trend-amount">${fmtEur(cur, 2)}</span>${deltaCell(cur, prev)}</td>`;
+  }).join('');
+
+  $('trends-tbody').innerHTML = rowsHtml + `<tr class="trends-total"><td>Итого</td>${totalCells}</tr>`;
 }
 
 function renderCats(txs) {
